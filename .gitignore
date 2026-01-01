@@ -211,6 +211,6 @@ production_builds/
 Dropfiles/
 build_artifacts/
 
-# External dependencies (git submodules if needed)
-external/A2UI/
-external/fastapi/
+# External dependencies (now internal)
+# external/A2UI/
+# external/fastapi/

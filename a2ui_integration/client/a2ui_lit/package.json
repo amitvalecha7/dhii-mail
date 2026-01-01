@@ -1,0 +1,22 @@
+{
+  "name": "@a2ui/lit-internal",
+  "version": "0.8.1",
+  "description": "A2UI Lit Library (Internal)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./0.8": {
+      "types": "./dist/src/0.8/core.d.ts",
+      "default": "./dist/src/0.8/core.js"
+    },
+    "./ui": {
+      "types": "./dist/src/0.8/ui/ui.d.ts",
+      "default": "./dist/src/0.8/ui/ui.js"
+    }
+  },
+  "type": "module"
+}
