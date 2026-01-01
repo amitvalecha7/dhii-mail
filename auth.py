@@ -344,8 +344,8 @@ class AuthManager:
         }
         return role_scopes.get(role, ['read'])
 
-# Global auth manager instance
-auth_manager = AuthManager(secret_key="dhii-mail-secret-key-for-development")
+# Global auth manager instance - will be set by main.py
+auth_manager = None
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> Dict[str, Any]:
     """FastAPI dependency to get current user from JWT token."""
@@ -353,6 +353,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
         raise RuntimeError("FastAPI not available. Cannot use get_current_user dependency.")
     
     from fastapi import HTTPException, status
+    
+    # Ensure auth_manager is initialized
+    if auth_manager is None:
+        raise RuntimeError("AuthManager not initialized. Make sure main.py is imported first.")
     
     token = credentials.credentials
     if not token:

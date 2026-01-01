@@ -62,6 +62,11 @@ def get_db():
 # Initialize authentication manager with environment-based secret key
 auth_manager = AuthManager(secret_key=os.getenv("JWT_SECRET_KEY", "dhii-mail-secret-key-for-development"))
 
+# Export auth_manager for use by auth.py
+from auth import auth_manager as _auth_manager_ref
+import auth
+auth.auth_manager = auth_manager
+
 # Pydantic models for request/response
 class UserRegistration(BaseModel):
     email: str
