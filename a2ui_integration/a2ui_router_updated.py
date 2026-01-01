@@ -29,29 +29,15 @@ class UIRequest(BaseModel):
     data: Optional[Dict[str, Any]] = {}
 
 class UIResponse(BaseModel):
-    ui_type: str
-    layout: Dict[str, Any]
-    navigation: Dict[str, Any]
-    chat_component: Optional[Dict[str, Any]] = None
+    component: Dict[str, Any]
+    state_info: Dict[str, Any]
     timestamp: str
 
 def create_ui_response_from_orchestrator(ui_data: Dict[str, Any]) -> UIResponse:
     """Convert orchestrator output to UIResponse format"""
-    # Extract AppShell component from the new structure
-    appshell_component = ui_data.get("component", {}).get("AppShell", {})
-    
-    # Create response compatible with UIResponse model
-    layout = {
-        "type": "appshell",
-        "component": ui_data.get("component", {}),
-        "state_info": ui_data.get("state_info", {})
-    }
-    
     return UIResponse(
-        ui_type="appshell",
-        layout=layout,
-        navigation={"type": "appshell"},
-        chat_component=None,
+        component=ui_data.get("component", {}),
+        state_info=ui_data.get("state_info", {}),
         timestamp=datetime.now().isoformat()
     )
 
@@ -92,13 +78,7 @@ async def handle_ui_action(request: UIRequest):
         
         # Otherwise just render the requested state
         ui_data = orchestrator.render_ui(state, request.context)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error handling UI action: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -136,13 +116,7 @@ async def get_email_compose():
     """Get A2UI email compose interface"""
     try:
         ui_data = orchestrator.render_ui(UIState.EMAIL_COMPOSE)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering email compose: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -164,13 +138,7 @@ async def get_calendar():
         }
         
         ui_data = orchestrator.render_ui(UIState.CALENDAR_VIEW, context)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering calendar: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -193,13 +161,7 @@ async def get_meetings():
         }
         
         ui_data = orchestrator.render_ui(UIState.MEETING_LIST, context)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering meetings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -209,13 +171,7 @@ async def get_meeting_book():
     """Get A2UI meeting booking interface"""
     try:
         ui_data = orchestrator.render_ui(UIState.MEETING_BOOK)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering meeting book: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -234,13 +190,7 @@ async def get_tasks():
         }
         
         ui_data = orchestrator.render_ui(UIState.TASK_BOARD, context)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -266,13 +216,7 @@ async def get_analytics():
         }
         
         ui_data = orchestrator.render_ui(UIState.ANALYTICS, context)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering analytics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -283,13 +227,7 @@ async def get_settings():
     """Get A2UI settings interface"""
     try:
         ui_data = orchestrator.render_ui(UIState.SETTINGS)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -307,13 +245,7 @@ async def get_chat():
         }
         
         ui_data = orchestrator.render_ui(UIState.CHAT, context)
-        return UIResponse(
-            ui_type=ui_data["ui_type"],
-            layout=ui_data["layout"],
-            navigation=ui_data["navigation"],
-            chat_component=ui_data.get("chat_component"),
-            timestamp=datetime.now().isoformat()
-        )
+        return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))
