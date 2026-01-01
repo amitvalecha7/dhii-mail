@@ -207,8 +207,9 @@ Thumbs.db
 # Custom ignore for dhii-mail specific files
 email_accounts.db
 *.db-journal
-production_builds/
-Dropfiles/
+# Production builds now included in repository for deployment
+# production_builds/
+# Dropfiles/
 build_artifacts/
 
 # External dependencies (now internal)

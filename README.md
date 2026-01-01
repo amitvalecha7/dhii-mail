@@ -142,6 +142,16 @@ GET /api/a2ui/meetings
 POST /api/a2ui/ui/action
 ```
 
+### Production Builds
+```bash
+# Pre-built production releases available in:
+./production_builds/
+# - dhii-mail-production-v2.0-final-20260101_184700.tar.gz
+# - Complete A2UI unified platform (624MB)
+# - Includes changelog and deployment scripts
+# - Ready for immediate deployment
+```
+
 ---
 
 ## 🚀 Quick Start
