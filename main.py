@@ -6,6 +6,7 @@ Main application entry point with authentication, email, and AI endpoints.
 import os
 import json
 import logging
+import sqlite3
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from contextlib import asynccontextmanager
