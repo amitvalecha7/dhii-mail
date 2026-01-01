@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dhii Mail - A2UI Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+            backdrop-filter: blur(10px);
+        }
+        
+        .sidebar {
+            width: 250px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .content-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .chat-panel {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .nav-item {
+            display: block;
+            padding: 12px 16px;
+            margin: 4px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(4px);
+        }
+        
+        .nav-item.active {
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .component-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #ff4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .chat-input {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .chat-input input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+        
+        .chat-input input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .message {
+            margin: 10px 0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            background: rgba(59, 130, 246, 0.8);
+            color: white;
+            margin-left: auto;
+        }
+        
+        .message.assistant {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .btn {
+            background: rgba(59, 130, 246, 0.8);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: rgba(59, 130, 246, 1);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <h2 style="color: white; margin-bottom: 20px;">dhii Mail</h2>
+            <button class="nav-item active" onclick="loadUI('dashboard')">Dashboard</button>
+            <button class="nav-item" onclick="loadUI('email/inbox')">Email</button>
+            <button class="nav-item" onclick="loadUI('calendar')">Calendar</button>
+            <button class="nav-item" onclick="loadUI('meetings')">Meetings</button>
+            <button class="nav-item" onclick="loadUI('tasks')">Tasks</button>
+            <button class="nav-item" onclick="loadUI('analytics')">Analytics</button>
+            <button class="nav-item" onclick="loadUI('settings')">Settings</button>
+        </div>
+        
+        <div class="main-content">
+            <div class="header">
+                <h1 id="current-view">Dashboard</h1>
+            </div>
+            <div class="content-area" id="content-area">
+                <div class="loading">Loading A2UI interface...</div>
+            </div>
+        </div>
+        
+        <div class="chat-panel">
+            <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.2);">
+                <h3 style="color: white;">AI Assistant</h3>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message assistant">
+                    Hello! I'm your AI assistant. How can I help you today?
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="chat-input" placeholder="Type your message..." onkeypress="handleChatKeypress(event)">
+                <button class="btn" onclick="sendMessage()" style="margin-top: 10px; width: 100%;">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentState = 'dashboard';
+        let chatMessages = [];
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUI('dashboard');
+        });
+        
+        // Load A2UI interface
+        async function loadUI(state) {
+            currentState = state;
+            updateActiveNav(state);
+            updateViewTitle(state);
+            
+            const contentArea = document.getElementById('content-area');
+            contentArea.innerHTML = '<div class="loading">Loading...</div>';
+            
+            try {
+                const response = await fetch(`/api/a2ui/${state}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const uiData = await response.json();
+                renderUI(uiData);
+            } catch (error) {
+                console.error('Error loading UI:', error);
+                contentArea.innerHTML = `<div class="error">Error loading interface: ${error.message}</div>`;
+            }
+        }
+        
+        // Render A2UI components
+        function renderUI(uiData) {
+            const contentArea = document.getElementById('content-area');
+            
+            if (!uiData.layout) {
+                contentArea.innerHTML = '<div class="error">Invalid UI data received</div>';
+                return;
+            }
+            
+            // Simple component renderer - in production this would be more sophisticated
+            let html = '<div class="component-container">';
+            html += `<h2>${uiData.ui_type || currentState}</h2>`;
+            html += '<p>A2UI components would be rendered here based on the layout data</p>';
+            html += '<pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">';
+            html += JSON.stringify(uiData, null, 2);
+            html += '</pre>';
+            html += '</div>';
+            
+            contentArea.innerHTML = html;
+        }
+        
+        // Update navigation active state
+        function updateActiveNav(state) {
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            
+            // Find the button that corresponds to the current state
+            const stateMap = {
+                'dashboard': 0,
+                'email/inbox': 1,
+                'calendar': 2,
+                'meetings': 3,
+                'tasks': 4,
+                'analytics': 5,
+                'settings': 6
+            };
+            
+            const index = stateMap[state] || 0;
+            if (navItems[index]) {
+                navItems[index].classList.add('active');
+            }
+        }
+        
+        // Update view title
+        function updateViewTitle(state) {
+            const titles = {
+                'dashboard': 'Dashboard',
+                'email/inbox': 'Email Inbox',
+                'calendar': 'Calendar',
+                'meetings': 'Meetings',
+                'tasks': 'Tasks',
+                'analytics': 'Analytics',
+                'settings': 'Settings'
+            };
+            
+            document.getElementById('current-view').textContent = titles[state] || 'Dashboard';
+        }
+        
+        // Chat functionality
+        function handleChatKeypress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            input.value = '';
+            
+            try {
+                // Send message to A2UI chat endpoint
+                const response = await fetch('/api/a2ui/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: 'default-session'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Add assistant response to chat
+                if (data.message) {
+                    addMessage(data.message, 'assistant');
+                }
+                
+                // Handle UI updates if any
+                if (data.ui_update) {
+                    renderUI(data.ui_update);
+                }
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+            }
+        }
+        
+        function addMessage(text, sender) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.textContent = text;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            chatMessages.push({ text, sender, timestamp: new Date().toISOString() });
+        }
+        
+        // Handle UI actions
+        async function handleAction(action, data) {
+            try {
+                const response = await fetch('/api/a2ui/ui/action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        state: currentState,
+                        action: action,
+                        data: data || {}
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // Handle navigation or UI updates
+                if (result.ui_update) {
+                    renderUI(result.ui_update);
+                }
+                
+            } catch (error) {
+                console.error('Error handling action:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

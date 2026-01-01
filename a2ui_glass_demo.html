@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dhii Mail A2UI Glass Theme Demo</title>
+    <link rel="stylesheet" href="/a2ui/static/glass-theme.css">
+    <style>
+        /* Base styles for demo */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .demo-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .demo-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .demo-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 30px;
+        }
+        
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        
+        .demo-section {
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+            padding: 40px;
+        }
+        
+        .error {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin: 16px 0;
+        }
+        
+        .success {
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin: 16px 0;
+        }
+        
+        /* Component specific styles */
+        .a2ui-text {
+            margin-bottom: 12px;
+        }
+        
+        .a2ui-button {
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        
+        .a2ui-container {
+            display: flex;
+        }
+        
+        .a2ui-image {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .demo-title {
+                font-size: 2rem;
+            }
+            
+            .demo-subtitle {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1 class="demo-title">🍎 dhii Mail A2UI Glass Theme</h1>
+            <p class="demo-subtitle">Experience Apple-style glass morphism in your email interface</p>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="section-title">Onboarding Experience</h2>
+            <div id="onboarding-cards" class="demo-grid">
+                <div class="loading">Loading onboarding cards...</div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="section-title">Dashboard Cards</h2>
+            <div id="dashboard-cards" class="demo-grid">
+                <div class="loading">Loading dashboard cards...</div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2 class="section-title">Interactive Demo</h2>
+            <div id="interactive-demo" class="demo-grid">
+                <div class="loading">Loading interactive demo...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // A2UI Component Renderer
+        class A2UIRenderer {
+            constructor() {
+                this.baseUrl = window.location.origin;
+                this.glassEffects = ['standard', 'elevated', 'subtle', 'glass_button'];
+                this.currentEffect = 0;
+            }
+
+            async loadGlassThemeCSS() {
+                try {
+                    const response = await fetch(`${this.baseUrl}/a2ui/static/glass-theme.css`);
+                    const css = await response.text();
+                    
+                    // Inject CSS into page
+                    const style = document.createElement('style');
+                    style.textContent = css;
+                    document.head.appendChild(style);
+                    
+                    console.log('✅ Glass theme CSS loaded');
+                } catch (error) {
+                    console.error('❌ Failed to load glass theme CSS:', error);
+                }
+            }
+
+            async fetchOnboardingCards() {
+                try {
+                    const response = await fetch(`${this.baseUrl}/a2ui/cards/onboarding`);
+                    const data = await response.json();
+                    return data.cards;
+                } catch (error) {
+                    console.error('❌ Failed to fetch onboarding cards:', error);
+                    return [];
+                }
+            }
+
+            async fetchDashboardCards() {
+                try {
+                    const response = await fetch(`${this.baseUrl}/a2ui/cards/dashboard`);
+                    const data = await response.json();
+                    return data.cards;
+                } catch (error) {
+                    console.error('❌ Failed to fetch dashboard cards:', error);
+                    return [];
+                }
+            }
+
+            async createCustomCard(cardType, properties, glassEffect = 'standard') {
+                try {
+                    const response = await fetch(`${this.baseUrl}/a2ui/cards/custom`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            card_type: cardType,
+                            properties: properties,
+                            glass_effect: glassEffect
+                        })
+                    });
+                    const data = await response.json();
+                    return data.card;
+                } catch (error) {
+                    console.error('❌ Failed to create custom card:', error);
+                    return null;
+                }
+            }
+
+            renderComponent(component, container) {
+                if (!component || !component.properties) {
+                    console.warn('Invalid component:', component);
+                    return;
+                }
+
+                const element = this.createElement(component);
+                if (element) {
+                    container.appendChild(element);
+                }
+            }
+
+            createElement(component) {
+                const { type, properties, children } = component;
+                
+                switch (type) {
+                    case 'container':
+                        return this.createContainer(properties, children);
+                    case 'text':
+                        return this.createText(properties);
+                    case 'button':
+                        return this.createButton(properties);
+                    case 'image':
+                        return this.createImage(properties);
+                    default:
+                        console.warn('Unknown component type:', type);
+                        return this.createContainer(properties, children);
+                }
+            }
+
+            createContainer(properties, children) {
+                const div = document.createElement('div');
+                div.className = 'a2ui-container';
+                
+                // Apply glass effect classes
+                if (properties.className) {
+                    div.classList.add(properties.className);
+                }
+                
+                // Apply styles
+                if (properties.styles) {
+                    Object.assign(div.style, this.convertStyles(properties.styles));
+                }
+
+                // Handle orientation and spacing
+                if (properties.orientation === 'horizontal') {
+                    div.style.flexDirection = 'row';
+                } else {
+                    div.style.flexDirection = 'column';
+                }
+
+                if (properties.spacing) {
+                    const spacing = this.getSpacingValue(properties.spacing);
+                    div.style.gap = spacing;
+                }
+
+                if (properties.alignment) {
+                    div.style.alignItems = this.getAlignmentValue(properties.alignment);
+                }
+
+                // Add padding and other layout properties
+                if (properties.padding) {
+                    div.style.padding = this.getSpacingValue(properties.padding);
+                }
+
+                if (properties.maxWidth) {
+                    div.style.maxWidth = properties.maxWidth;
+                    div.style.margin = properties.margin || '0 auto';
+                }
+
+                if (properties.textAlign) {
+                    div.style.textAlign = properties.textAlign;
+                }
+
+                // Render children
+                if (children && Array.isArray(children)) {
+                    children.forEach(child => {
+                        if (child) {
+                            const childElement = this.createElement(child);
+                            if (childElement) {
+                                div.appendChild(childElement);
+                            }
+                        }
+                    });
+                }
+
+                return div;
+            }
+
+            createText(properties) {
+                const element = document.createElement('div');
+                element.className = 'a2ui-text';
+                
+                // Apply variant and size
+                if (properties.variant === 'heading1') {
+                    element.style.fontSize = '2rem';
+                    element.style.fontWeight = properties.weight || '700';
+                } else if (properties.variant === 'heading2') {
+                    element.style.fontSize = '1.5rem';
+                    element.style.fontWeight = properties.weight || '600';
+                } else if (properties.variant === 'heading3') {
+                    element.style.fontSize = '1.25rem';
+                    element.style.fontWeight = properties.weight || '600';
+                } else {
+                    element.style.fontSize = properties.size === 'large' ? '1.1rem' : 
+                                          properties.size === 'small' ? '0.875rem' : '1rem';
+                    element.style.fontWeight = properties.weight || '400';
+                }
+
+                // Apply color
+                if (properties.color) {
+                    element.style.color = properties.color;
+                }
+
+                // Apply alignment
+                if (properties.align) {
+                    element.style.textAlign = properties.align;
+                }
+
+                // Apply line height
+                if (properties.lineHeight) {
+                    element.style.lineHeight = properties.lineHeight;
+                }
+
+                // Set content
+                element.textContent = properties.content || '';
+
+                // Apply additional styles
+                if (properties.styles) {
+                    Object.assign(element.style, this.convertStyles(properties.styles));
+                }
+
+                return element;
+            }
+
+            createButton(properties) {
+                const button = document.createElement('button');
+                button.className = 'a2ui-button glass-button';
+                
+                // Set button text
+                button.textContent = properties.label || 'Button';
+                
+                // Apply variant styling
+                if (properties.variant === 'primary') {
+                    button.style.background = 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)';
+                    button.style.color = 'white';
+                    button.style.border = 'none';
+                } else if (properties.variant === 'secondary') {
+                    button.style.background = 'rgba(255, 255, 255, 0.2)';
+                    button.style.color = '#3B82F6';
+                    button.style.border = '1px solid rgba(59, 130, 246, 0.3)';
+                } else {
+                    button.style.background = 'transparent';
+                    button.style.color = '#6B7280';
+                    button.style.border = 'none';
+                }
+
+                // Apply size
+                if (properties.size === 'large') {
+                    button.style.padding = '12px 24px';
+                    button.style.fontSize = '1.1rem';
+                } else if (properties.size === 'small') {
+                    button.style.padding = '8px 16px';
+                    button.style.fontSize = '0.875rem';
+                } else {
+                    button.style.padding = '10px 20px';
+                    button.style.fontSize = '1rem';
+                }
+
+                // Apply width
+                if (properties.fullWidth || properties.styles?.width === '100%') {
+                    button.style.width = '100%';
+                }
+
+                // Apply additional styles
+                if (properties.styles) {
+                    Object.assign(button.style, this.convertStyles(properties.styles));
+                }
+
+                // Add click handler
+                if (properties.onClick) {
+                    button.addEventListener('click', () => {
+                        this.handleAction(properties.onClick);
+                    });
+                }
+
+                return button;
+            }
+
+            createImage(properties) {
+                const img = document.createElement('img');
+                img.className = 'a2ui-image';
+                
+                img.src = properties.src || '';
+                img.alt = properties.alt || '';
+                
+                if (properties.width) {
+                    img.width = properties.width;
+                }
+                if (properties.height) {
+                    img.height = properties.height;
+                }
+                
+                if (properties.border_radius === 'circle') {
+                    img.style.borderRadius = '50%';
+                } else if (properties.border_radius) {
+                    img.style.borderRadius = properties.border_radius;
+                }
+
+                // Apply additional styles
+                if (properties.styles) {
+                    Object.assign(img.style, this.convertStyles(properties.styles));
+                }
+
+                return img;
+            }
+
+            convertStyles(styles) {
+                const converted = {};
+                for (const [key, value] of Object.entries(styles)) {
+                    // Convert camelCase to kebab-case for CSS
+                    const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+                    converted[cssKey] = value;
+                }
+                return converted;
+            }
+
+            getSpacingValue(spacing) {
+                const spacingMap = {
+                    'none': '0',
+                    'small': '8px',
+                    'medium': '16px', 
+                    'large': '24px',
+                    'xlarge': '32px'
+                };
+                return spacingMap[spacing] || '16px';
+            }
+
+            getAlignmentValue(alignment) {
+                const alignmentMap = {
+                    'start': 'flex-start',
+                    'center': 'center',
+                    'end': 'flex-end',
+                    'stretch': 'stretch'
+                };
+                return alignmentMap[alignment] || 'flex-start';
+            }
+
+            handleAction(action) {
+                console.log('Action triggered:', action);
+                
+                // Simulate action handling
+                if (action === 'start_onboarding') {
+                    this.showSuccess('Onboarding started!');
+                } else if (action === 'next_step') {
+                    this.showSuccess('Next step...');
+                } else if (action === 'show_features') {
+                    this.showSuccess('Features coming soon!');
+                } else {
+                    this.showSuccess(`Action: ${action}`);
+                }
+            }
+
+            showSuccess(message) {
+                const successDiv = document.createElement('div');
+                successDiv.className = 'success';
+                successDiv.textContent = message;
+                document.body.appendChild(successDiv);
+                
+                setTimeout(() => {
+                    successDiv.remove();
+                }, 3000);
+            }
+
+            async renderOnboardingCards() {
+                const container = document.getElementById('onboarding-cards');
+                container.innerHTML = '<div class="loading">Loading onboarding cards...</div>';
+                
+                const cards = await this.fetchOnboardingCards();
+                container.innerHTML = '';
+                
+                cards.forEach(card => {
+                    this.renderComponent(card, container);
+                });
+            }
+
+            async renderDashboardCards() {
+                const container = document.getElementById('dashboard-cards');
+                container.innerHTML = '<div class="loading">Loading dashboard cards...</div>';
+                
+                const cards = await this.fetchDashboardCards();
+                container.innerHTML = '';
+                
+                cards.forEach(card => {
+                    this.renderComponent(card, container);
+                });
+            }
+
+            async renderInteractiveDemo() {
+                const container = document.getElementById('interactive-demo');
+                container.innerHTML = '<div class="loading">Creating interactive demo...</div>';
+                
+                // Create custom interactive cards
+                const welcomeCard = await this.createCustomCard('welcome', {
+                    title: 'Interactive Demo',
+                    subtitle: 'Click to Change Theme',
+                    description: 'Experience the glass theme with different effects. Click the button to cycle through various glass styles.',
+                    primary_action: {
+                        label: 'Change Glass Effect',
+                        action: 'change_glass_effect'
+                    }
+                }, this.glassEffects[this.currentEffect]);
+                
+                const featureCard = await this.createCustomCard('feature', {
+                    icon: '🎨',
+                    title: 'Glass Variants',
+                    description: 'Each card demonstrates different glass morphism effects.',
+                    features: [
+                        'Standard glass effect',
+                        'Elevated glass effect', 
+                        'Subtle glass effect',
+                        'Interactive button styles'
+                    ],
+                    action: {
+                        label: 'Learn More',
+                        action: 'show_glass_info'
+                    }
+                }, 'elevated');
+                
+                container.innerHTML = '';
+                
+                if (welcomeCard) {
+                    this.renderComponent(welcomeCard, container);
+                }
+                
+                if (featureCard) {
+                    this.renderComponent(featureCard, container);
+                }
+                
+                // Add custom action handlers
+                this.setupInteractiveHandlers();
+            }
+
+            setupInteractiveHandlers() {
+                // Override action handlers for demo
+                const originalHandleAction = this.handleAction;
+                this.handleAction = (action) => {
+                    if (action === 'change_glass_effect') {
+                        this.cycleGlassEffect();
+                    } else if (action === 'show_glass_info') {
+                        this.showGlassInfo();
+                    } else {
+                        originalHandleAction.call(this, action);
+                    }
+                };
+            }
+
+            cycleGlassEffect() {
+                this.currentEffect = (this.currentEffect + 1) % this.glassEffects.length;
+                const newEffect = this.glassEffects[this.currentEffect];
+                
+                this.showSuccess(`Switched to ${newEffect} glass effect!`);
+                
+                // Re-render interactive demo with new effect
+                this.renderInteractiveDemo();
+            }
+
+            showGlassInfo() {
+                const info = `
+🍎 Apple Glass Morphism Effects:
+
+• Standard: Subtle translucent effect
+• Elevated: More prominent glass with extra blur
+• Subtle: Minimal glass for background elements  
+• Glass Button: Interactive button styling
+
+All effects include:
+✨ Backdrop blur filter
+🌈 Gradient backgrounds
+💎 Subtle borders
+🎯 Smooth transitions
+                `;
+                
+                alert(info);
+            }
+
+            async initialize() {
+                console.log('🚀 Initializing A2UI Glass Theme Demo...');
+                
+                // Load glass theme CSS
+                await this.loadGlassThemeCSS();
+                
+                // Render all sections
+                await Promise.all([
+                    this.renderOnboardingCards(),
+                    this.renderDashboardCards(),
+                    this.renderInteractiveDemo()
+                ]);
+                
+                console.log('✅ Demo initialized successfully!');
+            }
+        }
+
+        // Initialize demo when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            const renderer = new A2UIRenderer();
+            await renderer.initialize();
+        });
+    </script>
+</body>
+</html>

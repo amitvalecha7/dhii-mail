@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dhii Mail - Onboarding</title>
+    <style>
+        /* Amit.dhii.ai Inspired Styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Amit.dhii.ai Color Palette */
+            --brand-primary: #0071e3;
+            --brand-secondary: #1d1d1f;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --background-light: rgba(255, 255, 255, 0.1);
+            --background-dark: rgba(17, 25, 40, 0.15);
+            --border-light: rgba(255, 255, 255, 0.2);
+            --border-dark: rgba(0, 0, 0, 0.06);
+            --shadow-light: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 12px 40px 0 rgba(0, 0, 0, 0.15);
+            --font-primary: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            --font-mono: "SF Mono", Menlo, monospace;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            background: #f5f5f7;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        /* Header - Amit Style */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+            color: var(--text-primary);
+            padding: 16px 24px;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        .progress-indicator {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .progress-step {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.active {
+            background: var(--brand-primary);
+            transform: scale(1.2);
+        }
+
+        .progress-step.completed {
+            background: #34d399;
+        }
+
+        /* Onboarding Container - Amit Style */
+        .onboarding-container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 80px;
+        }
+
+        .onboarding-card {
+            /* Amit's exact Glass Styling */
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            padding: 40px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .onboarding-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Typography - Amit Style */
+        .card-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .card-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .step-indicator {
+            font-size: 14px;
+            color: var(--brand-primary);
+            text-align: center;
+            margin-bottom: 24px;
+            font-weight: 500;
+        }
+
+        /* Form Elements - Amit Style */
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 16px;
+            color: var(--text-primary);
+            font-family: var(--font-primary);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--brand-primary);
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
+        }
+
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: rgba(0, 0, 0, 0.4);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Radio Buttons - Amit Style */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .radio-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: var(--brand-primary);
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 12px;
+            accent-color: var(--brand-primary);
+        }
+
+        .radio-option label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .radio-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Buttons - Amit Style */
+        .button-group {
+            display: flex;
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #0071e3;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #005bb5;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-success {
+            background: #34d399;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #10b981;
+        }
+
+        /* Feature Grid - Amit Style */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 24px 0;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .feature-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .feature-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Success Animation - Amit Style */
+        .success-animation {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            animation: successPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes successPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .success-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .success-message {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .onboarding-card {
+                padding: 24px;
+                margin-bottom: 16px;
+            }
+            
+            .card-title {
+                font-size: 24px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Hidden state */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header - Amit Style -->
+    <header class="header">
+        <div class="header-content">
+            <a href="#" class="logo">dhii Mail</a>
+            <div class="progress-indicator">
+                <div class="progress-step active" id="step1"></div>
+                <div class="progress-step" id="step2"></div>
+                <div class="progress-step" id="step3"></div>
+                <div class="progress-step" id="step4"></div>
+                <div class="progress-step" id="step5"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Onboarding Container -->
+    <div class="onboarding-container">
+        <!-- Step 1: Welcome -->
+        <div class="onboarding-card fade-in" id="step1-card">
+            <div class="step-indicator">Step 1 of 5</div>
+            <h1 class="card-title">Welcome to dhii Mail AI</h1>
+            <p class="card-subtitle">
+                Let's get you set up with AI-powered email analysis. This will only take a few minutes.
+            </p>
+            
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-title">Smart Search</div>
+                    <div class="feature-description">Find emails instantly with AI-powered search</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Email Analytics</div>
+                    <div class="feature-description">Get insights into your communication patterns</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🤖</div>
+                    <div class="feature-title">AI Assistant</div>
+                    <div class="feature-description">Natural language email management</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔒</div>
+                    <div class="feature-title">Secure & Private</div>
+                    <div class="feature-description">Your data is encrypted and protected</div>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="nextStep()">Get Started</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Profile Setup -->
+        <div class="onboarding-card hidden" id="step2-card">
+            <div class="step-indicator">Step 2 of 5</div>
+            <h1 class="card-title">Set Up Your Profile</h1>
+            <p class="card-subtitle">Tell us a bit about yourself to personalize your experience.</p>
+            
+            <form id="profileForm">
+                <div class="form-group">
+                    <label class="form-label" for="fullName">Full Name</label>
+                    <input type="text" id="fullName" class="form-input" placeholder="Enter your full name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="form-input" placeholder="your@email.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="company">Company (Optional)</label>
+                    <input type="text" id="company" class="form-input" placeholder="Your company name">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="role">Role (Optional)</label>
+                    <input type="text" id="role" class="form-input" placeholder="Your job title">
+                </div>
+            </form>
+            
+            <div class="button-group">
+                <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Continue</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Email Configuration -->
+        <div class="onboarding-card hidden" id="step3-card">
+            <div class="step-indicator">Step 3 of 5</div>
+            <h1 class="card-title">Connect Your Email</h1>
+            <p class="card-subtitle">Choose your email provider to get started with AI analysis.</p>
+            
+            <div class="radio-group">
+                <div class="radio-option" onclick="selectEmailProvider('gmail')">
+                    <input type="radio" id="gmail" name="emailProvider" value="gmail">
+                    <label for="gmail">
+                        <strong>Gmail</strong>
+                        <div class="radio-description">Connect your Gmail account for AI analysis</div>
+                    </label>
+                </div>
+                
+                <div class="radio-option" onclick="selectEmailProvider('outlook')">
+                    <input type="radio" id="outlook" name="emailProvider" value="outlook">
+                    <label for="outlook">
+                        <strong>Outlook</strong>
+                        <div class="radio-description">Connect your Outlook or Hotmail account</div>
+                    </label>
+                </div>
+                
+                <div class="radio-option" onclick="selectEmailProvider('yahoo')">
+                    <input type="radio" id="yahoo" name="emailProvider" value="yahoo">
+                    <label for="yahoo">
+                        <strong>Yahoo Mail</strong>
+                        <div class="radio-description">Connect your Yahoo Mail account</div>
+                    </label>
+                </div>
+                
+                <div class="radio-option" onclick="selectEmailProvider('other')">
+                    <input type="radio" id="other" name="emailProvider" value="other">
+                    <label for="other">
+                        <strong>Other Provider</strong>
+                        <div class="radio-description">Connect using IMAP/SMTP settings</div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Continue</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Preferences -->
+        <div class="onboarding-card hidden" id="step4-card">
+            <div class="step-indicator">Step 4 of 5</div>
+            <h1 class="card-title">Customize Your Experience</h1>
+            <p class="card-subtitle">Tell us how you'd like to use AI email analysis.</p>
+            
+            <form id="preferencesForm">
+                <div class="form-group">
+                    <label class="form-label" for="analysisFrequency">Analysis Frequency</label>
+                    <select id="analysisFrequency" class="form-select">
+                        <option value="daily">Daily summaries</option>
+                        <option value="weekly">Weekly reports</option>
+                        <option value="monthly">Monthly insights</option>
+                        <option value="on-demand">Only when I ask</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="keywords">Important Keywords</label>
+                    <textarea id="keywords" class="form-textarea" placeholder="Enter keywords you want AI to prioritize (one per line)"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="categories">Email Categories</label>
+                    <textarea id="categories" class="form-textarea" placeholder="Enter categories you want to track (e.g., work, personal, finance)"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="privacy">Privacy Level</label>
+                    <select id="privacy" class="form-select">
+                        <option value="high">High - Minimal data retention</option>
+                        <option value="medium">Medium - Standard analytics</option>
+                        <option value="low">Low - Full AI features</option>
+                    </select>
+                </div>
+            </form>
+            
+            <div class="button-group">
+                <button type="button" class="btn btn-secondary" onclick="previousStep()">Back</button>
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Continue</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Completion -->
+        <div class="onboarding-card hidden" id="step5-card">
+            <div class="step-indicator">Step 5 of 5</div>
+            <div class="success-animation">
+                <div class="success-icon">🎉</div>
+                <h1 class="success-title">You're All Set!</h1>
+                <p class="success-message">
+                    Your AI email assistant is ready to help you manage and analyze your emails. 
+                    You can now access the chat interface and start asking questions about your emails.
+                </p>
+            </div>
+            
+            <div class="button-group">
+                <button type="button" class="btn btn-success" onclick="completeOnboarding()">Go to Chat</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let onboardingData = {};
+
+        function updateProgress() {
+            for (let i = 1; i <= 5; i++) {
+                const step = document.getElementById(`step${i}`);
+                if (i < currentStep) {
+                    step.classList.add('completed');
+                    step.classList.remove('active');
+                } else if (i === currentStep) {
+                    step.classList.add('active');
+                    step.classList.remove('completed');
+                } else {
+                    step.classList.remove('active', 'completed');
+                }
+            }
+        }
+
+        function showStep(step) {
+            // Hide all cards
+            for (let i = 1; i <= 5; i++) {
+                const card = document.getElementById(`step${i}-card`);
+                if (i === step) {
+                    card.classList.remove('hidden');
+                    card.classList.add('fade-in');
+                } else {
+                    card.classList.add('hidden');
+                }
+            }
+            updateProgress();
+        }
+
+        function nextStep() {
+            if (validateCurrentStep()) {
+                saveCurrentStepData();
+                if (currentStep < 5) {
+                    currentStep++;
+                    showStep(currentStep);
+                }
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+
+        function validateCurrentStep() {
+            switch (currentStep) {
+                case 1:
+                    return true; // Welcome step, no validation needed
+                case 2:
+                    const fullName = document.getElementById('fullName').value.trim();
+                    const email = document.getElementById('email').value.trim();
+                    if (!fullName || !email) {
+                        alert('Please fill in all required fields');
+                        return false;
+                    }
+                    if (!isValidEmail(email)) {
+                        alert('Please enter a valid email address');
+                        return false;
+                    }
+                    return true;
+                case 3:
+                    const emailProvider = document.querySelector('input[name="emailProvider"]:checked');
+                    if (!emailProvider) {
+                        alert('Please select an email provider');
+                        return false;
+                    }
+                    return true;
+                case 4:
+                    return true; // Preferences step, no validation needed
+                case 5:
+                    return true; // Completion step, no validation needed
+                default:
+                    return true;
+            }
+        }
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        function saveCurrentStepData() {
+            switch (currentStep) {
+                case 2:
+                    onboardingData.fullName = document.getElementById('fullName').value.trim();
+                    onboardingData.email = document.getElementById('email').value.trim();
+                    onboardingData.company = document.getElementById('company').value.trim();
+                    onboardingData.role = document.getElementById('role').value.trim();
+                    break;
+                case 3:
+                    onboardingData.emailProvider = document.querySelector('input[name="emailProvider"]:checked').value;
+                    break;
+                case 4:
+                    onboardingData.analysisFrequency = document.getElementById('analysisFrequency').value;
+                    onboardingData.keywords = document.getElementById('keywords').value.trim();
+                    onboardingData.categories = document.getElementById('categories').value.trim();
+                    onboardingData.privacy = document.getElementById('privacy').value;
+                    break;
+            }
+        }
+
+        function selectEmailProvider(provider) {
+            document.getElementById(provider).checked = true;
+        }
+
+        function completeOnboarding() {
+            // Save all onboarding data to localStorage or send to server
+            localStorage.setItem('onboardingData', JSON.stringify(onboardingData));
+            localStorage.setItem('onboardingComplete', 'true');
+            
+            // Redirect to chat interface
+            window.location.href = '/';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateProgress();
+            
+            // Add form submission handlers
+            document.getElementById('profileForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                nextStep();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# SQLite configuration for Postfix virtual mailboxes
+dbpath = /root/dhii-mail/dhii_mail.db
+query = SELECT email_address FROM users WHERE email_address='%s' AND is_active=1

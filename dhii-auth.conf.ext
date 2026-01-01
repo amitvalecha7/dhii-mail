@@ -1,0 +1,15 @@
+# Authentication configuration for dhii Mail
+auth_mechanisms = plain login
+auth_username_format = %u
+
+# SQL authentication
+passdb {
+  driver = sql
+  args = /etc/dovecot/dhii-dovecot-sql.conf.ext
+}
+
+userdb {
+  driver = sql
+  args = /etc/dovecot/dhii-dovecot-sql.conf.ext
+  default_fields = uid=vmail gid=vmail home=/var/mail/dhii/%u
+}

@@ -1,0 +1,12 @@
+# Dovecot SQL configuration for dhii Mail
+driver = sqlite
+connect = /root/dhii-mail/dhii_mail.db
+
+# Query to get user's password and other authentication data
+password_query = SELECT username as user, password_hash as password FROM users WHERE email='%u' AND is_active=1
+
+# Query to get user information
+user_query = SELECT username as user, '/var/mail/dhii/%u' as home, 'maildir:/var/mail/dhii/%u' as mail FROM users WHERE email='%u' AND is_active=1
+
+# For virtual users (email accounts)
+iterate_query = SELECT email FROM users WHERE is_active=1
