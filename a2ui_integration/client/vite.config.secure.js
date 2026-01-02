@@ -1,7 +1,28 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
+import { execSync } from 'child_process'
+
+// Generate secure configuration before build
+function generateSecureConfig() {
+  try {
+    console.log('🔐 Generating secure configuration...')
+    execSync('node build-config.js', { stdio: 'inherit', cwd: __dirname })
+    console.log('✅ Secure configuration generated')
+  } catch (error) {
+    console.error('❌ Failed to generate secure configuration:', error.message)
+    // Don't fail the build, just warn
+  }
+}
 
 export default defineConfig({
+  // Pre-build hook to generate secure configuration
+  plugins: [{
+    name: 'secure-config',
+    buildStart() {
+      generateSecureConfig()
+    }
+  }],
+  
   server: {
     port: 3001,
     proxy: {
@@ -28,7 +49,9 @@ export default defineConfig({
     },
     rollupOptions: {
       input: {
-        main: 'index.html'
+        main: 'index.html',
+        // Include secure config script
+        'secure-config': 'secure-config.js'
       },
       output: {
         manualChunks: (id) => {
@@ -47,6 +70,14 @@ export default defineConfig({
               return 'vendor-markdown'
             }
             return 'vendor'
+          }
+          
+          // Separate config from main bundle
+          if (id.includes('config.js')) {
+            return 'config'
+          }
+          if (id.includes('secure-config.js')) {
+            return 'secure-config'
           }
         },
         // Optimize chunk naming

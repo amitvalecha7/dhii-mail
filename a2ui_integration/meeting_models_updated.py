@@ -346,6 +346,14 @@ class MeetingDatabaseManager:
         cursor = conn.cursor()
         
         try:
+            # Validate allowed fields to prevent SQL injection
+            allowed_fields = {
+                'default_duration', 'default_reminder_time', 'meeting_buffer_before', 
+                'meeting_buffer_after', 'auto_accept_internal', 'auto_accept_external', 
+                'email_notifications', 'calendar_notifications', 'preferred_time_start', 
+                'preferred_time_end', 'max_daily_meetings', 'working_days'
+            }
+            
             existing = self.get_user_meeting_preferences(user_email)
             
             if existing:
@@ -353,6 +361,9 @@ class MeetingDatabaseManager:
                 update_fields = []
                 values = []
                 for key, value in preferences.items():
+                    if key not in allowed_fields:
+                        continue  # Skip invalid fields
+                        
                     if key in ['default_duration', 'default_reminder_time', 'meeting_buffer_before', 'meeting_buffer_after']:
                         update_fields.append(f"{key} = ?")
                         values.append(value)
@@ -378,6 +389,9 @@ class MeetingDatabaseManager:
                 fields = []
                 values = []
                 for key, value in preferences.items():
+                    if key not in allowed_fields and key not in ['user_email', 'created_at', 'updated_at']:
+                        continue  # Skip invalid fields
+                        
                     fields.append(key)
                     if key in ['default_duration', 'default_reminder_time', 'meeting_buffer_before', 'meeting_buffer_after']:
                         values.append(value)

@@ -343,11 +343,20 @@ class CalendarManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
+            # Validate allowed fields to prevent SQL injection
+            allowed_fields = {
+                'title', 'description', 'start_time', 'end_time', 'location', 
+                'status', 'priority', 'attendees', 'reminder_minutes', 'user_id'
+            }
+            
             # Build update query
             update_fields = []
             values = []
             
             for field, value in updates.items():
+                if field not in allowed_fields:
+                    continue  # Skip invalid fields
+                    
                 if field == 'attendees':
                     update_fields.append("attendees = ?")
                     values.append(json.dumps(value))

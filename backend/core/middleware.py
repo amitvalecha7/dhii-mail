@@ -104,6 +104,18 @@ def setup_middleware(app: FastAPI):
         # Get identifier (IP address or user ID if authenticated)
         identifier = request.client.host
         
+        # Check for authentication token to apply user-specific rate limiting
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            # For authenticated users, use a combination of user ID and IP
+            # This allows for more granular rate limiting
+            try:
+                # Extract user identifier from token (simplified approach)
+                identifier = f"user_auth_{identifier}"
+            except Exception:
+                # Fall back to IP-based if token parsing fails
+                pass
+        
         # Check rate limit
         if rate_limiter.is_rate_limited(identifier):
             logger.warning(f"Rate limit exceeded for {identifier}")

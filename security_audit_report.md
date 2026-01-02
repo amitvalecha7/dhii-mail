@@ -2,12 +2,13 @@
 ==================================================
 
 📊 **Endpoint Analysis:**
-- Total endpoints: 46
-- Secure endpoints (score ≥ 70): 46
-- Vulnerabilities found: 1
+- Total endpoints: 48
+- Secure endpoints (score ≥ 70): 48
+- Vulnerabilities found: 0
 
 📋 **Endpoint Security Breakdown:**
 🔒 GET / - Score: 70/100
+🔒 GET /a2ui - Score: 70/100
 🔒 GET /a2ui - Score: 70/100
 🔒 GET /health - Score: 70/100
 🔒 POST /auth/register - Score: 70/100
@@ -18,6 +19,7 @@
 🔒 POST /chat - Score: 70/100
 🔒 POST /auth/card/action - Score: 70/100
 🔒 POST /auth/chat - Score: 70/100
+🔒 GET /ws/status - Score: 70/100
 🔒 POST /video/meetings - Score: 70/100
 🔒 GET /video/meetings - Score: 70/100
 🔒 GET /video/meetings/{meeting_id} - Score: 70/100
@@ -53,9 +55,6 @@
 🔒 POST /security/encrypt-data - Score: 70/100
 🔒 POST /security/decrypt-data - Score: 70/100
 🔒 POST /security/sanitize-input - Score: 70/100
-
-🚨 **Vulnerabilities Found:**
-- hardcoded_secret: Potential hardcoded secret: key (line 61)
 
 🔧 **Security Recommendations:**
 1. **Authentication**: Ensure all sensitive endpoints use proper authentication

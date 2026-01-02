@@ -24,8 +24,11 @@ from auth import AuthManager, get_current_user
 # Import database system
 from database import DatabaseManager
 
+# Import error handling system
+from error_handler import ErrorHandler, AppError, ValidationError, AuthenticationError, AuthorizationError, ExternalServiceError, ResourceNotFoundError
+
 # Import WebSocket manager
-from websocket_manager import WebSocketManager, ChatMessage, websocket_manager
+from enhanced_websocket_manager import EnhancedWebSocketManager, ChatMessage, enhanced_websocket_manager
 
 # Import AI engine
 from ai_engine import AIEngine, ai_engine
@@ -47,6 +50,9 @@ from security_manager import security_manager, SecurityEvent
 
 # Import middleware
 from backend.core.middleware import setup_middleware
+
+# Import error handler
+from error_handler import ErrorHandler, AppError, AuthenticationError, AuthorizationError, ValidationError, DatabaseError, NetworkError, ExternalServiceError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -120,13 +126,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Import configuration
+from config import settings
+
+# Add CORS middleware with environment-driven configuration
+cors_config = settings.get_cors_config()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_config["allow_origins"],
+    allow_credentials=cors_config["allow_credentials"],
+    allow_methods=cors_config["allow_methods"],
+    allow_headers=cors_config["allow_headers"],
 )
 
 # Setup additional middleware (rate limiting, security headers, logging)
@@ -208,27 +218,33 @@ async def root():
 # A2UI Interface endpoint - serves the new all-A2UI client
 @app.get("/a2ui", response_class=HTMLResponse)
 async def a2ui_interface():
-    """Serve A2UI interface for all-A2UI architecture."""
+    """Serve A2UI interface for all-A2UI architecture with standardized error handling."""
     try:
         with open("a2ui_integration/client/index.html", "r") as f:
             html_content = f.read()
         return HTMLResponse(content=html_content)
-    except FileNotFoundError:
-        logger.error("A2UI interface not found")
+        
+    except FileNotFoundError as e:
+        error = ErrorHandler.handle_error(
+            e, 
+            {"endpoint": "a2ui_interface", "file": "a2ui_integration/client/index.html"}
+        )
         return JSONResponse(
             status_code=404,
-            content={
-                "error": "A2UI interface not found",
-                "message": "The A2UI client interface is not available",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+            content=error.to_dict()
+        )
+    except Exception as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "a2ui_interface"})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
         )
 
 
 # Health check
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint with standardized error handling."""
     try:
         # Check database connection
         db = get_db()
@@ -242,22 +258,23 @@ async def health_check():
             },
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+        
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "health_check"})
         return JSONResponse(
             status_code=503,
-            content={
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+            content=error.to_dict()
         )
 
 # Authentication endpoints
 @app.post("/auth/register")
 async def register_user(user: UserRegistration):
-    """Register a new user."""
+    """Register a new user with standardized error handling."""
     try:
+        # Validate input
+        if not user.email or not user.username or not user.password:
+            raise ValidationError("Email, username, and password are required")
+        
         result = auth_manager.create_user(
             email=user.email,
             username=user.username,
@@ -265,22 +282,36 @@ async def register_user(user: UserRegistration):
             first_name=user.first_name,
             last_name=user.last_name
         )
+        
         if result is None:
-            raise HTTPException(status_code=400, detail="User already exists")
+            raise ValidationError("User already exists")
+            
         return result
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        
+    except (ValidationError, ValueError) as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "register_user", "user": user.username})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Registration error: {e}")
-        raise HTTPException(status_code=500, detail="Registration failed")
+        error = ErrorHandler.handle_error(e, {"endpoint": "register_user", "user": user.username})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
+        )
 
 @app.post("/auth/login")
 async def login_user(user: UserLogin):
-    """Login user and return tokens."""
+    """Login user and return tokens with standardized error handling."""
     try:
+        # Validate input
+        if not user.username or not user.password:
+            raise ValidationError("Username and password are required")
+            
         result = auth_manager.authenticate_user(user.username, user.password)
         if not result:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise AuthenticationError("Invalid credentials")
         
         # Create tokens
         access_token = auth_manager.create_token(result['id'], 'access')
@@ -292,20 +323,38 @@ async def login_user(user: UserLogin):
             "token_type": "bearer",
             "user": result
         }
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        
+    except AuthenticationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "login_user", "username": user.username})
+        return JSONResponse(
+            status_code=401,
+            content=error.to_dict()
+        )
+    except (ValidationError, ValueError) as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "login_user", "username": user.username})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Login error: {e}")
-        raise HTTPException(status_code=500, detail="Login failed")
+        error = ErrorHandler.handle_error(e, {"endpoint": "login_user", "username": user.username})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
+        )
 
 @app.post("/auth/refresh")
 async def refresh_token(token: TokenRefresh):
-    """Refresh access token."""
+    """Refresh access token with standardized error handling."""
     try:
+        # Validate input
+        if not token.refresh_token:
+            raise ValidationError("Refresh token is required")
+            
         # Verify refresh token
         user_data = auth_manager.verify_token(token.refresh_token, 'refresh')
         if not user_data:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
+            raise AuthenticationError("Invalid refresh token")
         
         # Create new access token
         new_access_token = auth_manager.create_token(user_data['user_id'], 'access')
@@ -314,29 +363,51 @@ async def refresh_token(token: TokenRefresh):
             "access_token": new_access_token,
             "token_type": "bearer"
         }
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        
+    except AuthenticationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "refresh_token"})
+        return JSONResponse(
+            status_code=401,
+            content=error.to_dict()
+        )
+    except (ValidationError, ValueError) as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "refresh_token"})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Token refresh error: {e}")
-        raise HTTPException(status_code=500, detail="Token refresh failed")
+        error = ErrorHandler.handle_error(e, {"endpoint": "refresh_token"})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
+        )
 
 @app.post("/auth/logout")
 async def logout_user(request: Request):
-    """Logout user (invalidate token)."""
+    """Logout user (invalidate token) with standardized error handling."""
     try:
         # Extract token from Authorization header
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Invalid authorization header")
+            raise AuthenticationError("Invalid authorization header")
         
         token = auth_header.split(" ")[1]
         result = auth_manager.logout_user(token)
         return result
-    except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        
+    except AuthenticationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "logout_user"})
+        return JSONResponse(
+            status_code=401,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Logout error: {e}")
-        raise HTTPException(status_code=500, detail="Logout failed")
+        error = ErrorHandler.handle_error(e, {"endpoint": "logout_user"})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
+        )
 
 # A2UI Form-based Authentication (handles login cards)
 class FormAuthRequest(BaseModel):
@@ -968,8 +1039,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     # Generate session ID for this connection
     session_id = f"ws_{client_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
     
-    # Establish connection through WebSocket manager
-    connection = await websocket_manager.connect(websocket, client_id, session_id)
+    # Establish connection through enhanced WebSocket manager
+    connection = await enhanced_websocket_manager.connect(websocket, client_id, session_id)
     
     try:
         # Send initial connection message
@@ -1015,7 +1086,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     if token_data:
                         user_id = token_data.get('user_id')
                         is_authenticated = True
-                        websocket_manager.update_user_authentication(client_id, user_id, True)
+                        enhanced_websocket_manager.update_user_authentication(client_id, user_id, True)
                 except Exception as e:
                     logger.warning(f"Token verification failed for {client_id}: {e}")
             
@@ -1030,7 +1101,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             )
             
             # Add to message history
-            websocket_manager.add_message(chat_request.session_id, user_message)
+            enhanced_websocket_manager.add_message(chat_request.session_id, user_message)
             
             # Echo user message back (with proper formatting)
             await connection.send_message({
@@ -1056,7 +1127,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                             "content": msg.content,
                             "timestamp": msg.timestamp.isoformat()
                         }
-                        for msg in websocket_manager.get_session_messages(chat_request.session_id)[-10:]
+                        for msg in enhanced_websocket_manager.get_session_messages(chat_request.session_id)[-10:]
                     ]
                 }
                 
@@ -1078,7 +1149,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 )
                 
                 # Add to message history
-                websocket_manager.add_message(chat_request.session_id, ai_message)
+                enhanced_websocket_manager.add_message(chat_request.session_id, ai_message)
                 
                 # Send AI response
                 response_data = {
@@ -1116,15 +1187,36 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             
     except WebSocketDisconnect:
         logger.info(f"WebSocket client disconnected: {client_id}")
-        websocket_manager.disconnect(client_id)
+        await enhanced_websocket_manager.disconnect(client_id)
         
     except Exception as e:
         logger.error(f"WebSocket error for client {client_id}: {e}")
-        websocket_manager.disconnect(client_id)
+        await enhanced_websocket_manager.disconnect(client_id)
         try:
             await websocket.close()
         except:
             pass
+
+# WebSocket status endpoint
+@app.get("/ws/status")
+async def get_websocket_status():
+    """Get WebSocket connection status and statistics"""
+    try:
+        stats = enhanced_websocket_manager.get_connection_stats()
+        return {
+            "success": True,
+            "status": stats,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting WebSocket status: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": "Failed to get WebSocket status"
+            }
+        )
 
 # Video Conferencing Endpoints
 @app.post("/video/meetings")
@@ -1911,7 +2003,7 @@ async def get_emails(
     offset: int = Query(0, description="Offset for pagination"),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's emails."""
+    """Get user's emails with standardized error handling."""
     try:
         user_id = current_user['id']
         emails = email_manager.get_emails(user_id, folder, limit, offset)
@@ -1922,14 +2014,18 @@ async def get_emails(
             "count": len(emails),
             "folder": folder
         }
+        
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_emails", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error getting emails: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_emails", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "message": "Failed to retrieve emails"
-            }
+            content=error.to_dict()
         )
 
 @app.post("/emails/send")
@@ -1937,9 +2033,15 @@ async def send_email(
     email_data: dict,
     current_user: dict = Depends(get_current_user)
 ):
-    """Send an email."""
+    """Send an email with standardized error handling."""
     try:
         user_id = current_user['id']
+        
+        # Validate input
+        required_fields = ['subject', 'recipient', 'body']
+        for field in required_fields:
+            if field not in email_data or not email_data[field]:
+                raise ValidationError(f"Missing required field: {field}")
         
         # Create email message
         message = EmailMessage(
@@ -1969,13 +2071,7 @@ async def send_email(
             if result:
                 account_id = result[0]
             else:
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "success": False,
-                        "message": "No email account configured"
-                    }
-                )
+                raise ValidationError("No email account configured")
         
         # Send email
         success = email_manager.send_email(message, account_id)
@@ -1986,22 +2082,25 @@ async def send_email(
                 "message": "Email sent successfully"
             }
         else:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "message": "Failed to send email"
-                }
-            )
+            raise ExternalServiceError("Failed to send email")
             
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "send_email", "user_id": user_id})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
+    except ExternalServiceError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "send_email", "user_id": user_id})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error sending email: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "send_email", "user_id": user_id})
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "message": "Failed to send email"
-            }
+            content=error.to_dict()
         )
 
 # AI endpoints (placeholder)
@@ -2138,7 +2237,7 @@ async def add_email_account(
     account: EmailAccount,
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new email account for the authenticated user."""
+    """Add a new email account for the authenticated user with standardized error handling."""
     try:
         user_id = current_user['id']
         account.user_id = user_id  # Set the user_id from the authenticated user
@@ -2151,28 +2250,32 @@ async def add_email_account(
                 "message": "Email account added successfully"
             }
         else:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "message": "Failed to add email account. Please check your credentials."
-                }
-            )
+            raise ExternalServiceError("Failed to add email account. Please check your credentials.")
+            
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "add_email_account", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
+    except ExternalServiceError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "add_email_account", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error adding email account: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "add_email_account", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "message": "Internal server error"
-            }
+            content=error.to_dict()
         )
 
 @app.get("/email/accounts")
 async def get_email_accounts(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all email accounts for the authenticated user."""
+    """Get all email accounts for the authenticated user with standardized error handling."""
     try:
         user_id = current_user['id']
         accounts = email_manager.get_email_accounts(user_id)
@@ -2190,14 +2293,18 @@ async def get_email_accounts(
                 for acc in accounts
             ]
         }
+        
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_email_accounts", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error getting email accounts: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_email_accounts", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "message": "Internal server error"
-            }
+            content=error.to_dict()
         )
 
 @app.post("/email/send")
@@ -2205,20 +2312,18 @@ async def send_email(
     email_message: EmailMessage,
     current_user: dict = Depends(get_current_user)
 ):
-    """Send an email using the authenticated user's account."""
+    """Send an email using the authenticated user's account with standardized error handling."""
     try:
         user_id = current_user['id']
+        
+        # Validate email message
+        if not email_message.subject or not email_message.body or not email_message.recipient:
+            raise ValidationError("Email must have subject, body, and recipient")
         
         # Check if user has email accounts
         accounts = email_manager.get_email_accounts(user_id)
         if not accounts:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "message": "No email accounts configured. Please add an email account first."
-                }
-            )
+            raise ValidationError("No email accounts configured. Please add an email account first.")
         
         # Use the first active account
         account = next((acc for acc in accounts if acc.is_active), accounts[0])
@@ -2233,21 +2338,25 @@ async def send_email(
                 "message": "Email sent successfully"
             }
         else:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "message": "Failed to send email. Please check your account settings."
-                }
-            )
+            raise ExternalServiceError("Failed to send email. Please check your account settings.")
+            
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "send_email", "user_id": user_id})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
+    except ExternalServiceError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "send_email", "user_id": user_id})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error sending email: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "send_email", "user_id": user_id})
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "message": "Internal server error"
-            }
+            content=error.to_dict()
         )
 
 @app.get("/email/inbox")
@@ -2256,32 +2365,20 @@ async def get_inbox(
     limit: int = 50,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get emails from the authenticated user's inbox."""
+    """Get emails from the authenticated user's inbox with standardized error handling."""
     try:
         user_id = current_user['id']
         
         # Get email accounts
         accounts = email_manager.get_email_accounts(user_id)
         if not accounts:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "message": "No email accounts configured. Please add an email account first."
-                }
-            )
+            raise ValidationError("No email accounts configured. Please add an email account first.")
         
         # Use specific account or first available
         if account_id:
             account = next((acc for acc in accounts if acc.id == account_id), None)
             if not account:
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "success": False,
-                        "message": "Email account not found"
-                    }
-                )
+                raise ValidationError("Email account not found")
         else:
             account = accounts[0]
         
@@ -2308,14 +2405,18 @@ async def get_inbox(
                 "provider": account.provider
             }
         }
+        
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_inbox", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error getting inbox: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_inbox", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "message": "Internal server error"
-            }
+            content=error.to_dict()
         )
 
 @app.delete("/email/accounts/{account_id}")
@@ -2323,7 +2424,7 @@ async def delete_email_account(
     account_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete an email account for the authenticated user."""
+    """Delete an email account for the authenticated user with standardized error handling."""
     try:
         user_id = current_user['id']
         success = email_manager.delete_email_account(user_id, account_id)
@@ -2334,21 +2435,25 @@ async def delete_email_account(
                 "message": "Email account deleted successfully"
             }
         else:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "message": "Failed to delete email account or account not found"
-                }
-            )
+            raise ResourceNotFoundError("Failed to delete email account or account not found")
+            
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "delete_email_account", "user_id": current_user.get('id'), "account_id": account_id})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
+    except ResourceNotFoundError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "delete_email_account", "user_id": current_user.get('id'), "account_id": account_id})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error deleting email account: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "delete_email_account", "user_id": current_user.get('id'), "account_id": account_id})
         return JSONResponse(
             status_code=500,
-            content={
-                "success": False,
-                "message": "Internal server error"
-            }
+            content=error.to_dict()
         )
 
 # Security endpoints
@@ -2357,19 +2462,29 @@ async def validate_password(
     password_data: dict,
     current_user: dict = Depends(get_current_user)
 ):
-    """Validate password strength."""
+    """Validate password strength with standardized error handling."""
     try:
         password = password_data.get("password", "")
+        if not password:
+            raise ValidationError("Password is required")
+            
         result = security_manager.validate_password_strength(password)
         return {
             "success": True,
             "validation_result": result
         }
+        
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "validate_password", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error validating password: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "validate_password", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": "Failed to validate password"}
+            content=error.to_dict()
         )
 
 @app.get("/security/events")
@@ -2380,14 +2495,11 @@ async def get_security_events(
     limit: int = 100,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get security events (admin only)."""
+    """Get security events (admin only) with standardized error handling."""
     try:
         # Check if user is admin (simplified check - in production, use proper role management)
         if current_user.get('email') != 'admin@dhii.ai':
-            return JSONResponse(
-                status_code=403,
-                content={"success": False, "message": "Admin access required"}
-            )
+            raise AuthorizationError("Admin access required")
         
         events = security_manager.get_security_events(
             user_email=user_email,
@@ -2412,29 +2524,37 @@ async def get_security_events(
             ],
             "total": len(events)
         }
+        
+    except AuthorizationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_security_events", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=403,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error getting security events: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_security_events", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": "Failed to get security events"}
+            content=error.to_dict()
         )
 
 @app.get("/security/summary")
 async def get_security_summary(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get security summary statistics."""
+    """Get security summary statistics with standardized error handling."""
     try:
         summary = security_manager.get_security_summary()
         return {
             "success": True,
             "summary": summary
         }
+        
     except Exception as e:
-        logger.error(f"Error getting security summary: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_security_summary", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": "Failed to get security summary"}
+            content=error.to_dict()
         )
 
 @app.post("/security/encrypt-data")
@@ -2442,19 +2562,29 @@ async def encrypt_sensitive_data(
     data: dict,
     current_user: dict = Depends(get_current_user)
 ):
-    """Encrypt sensitive data."""
+    """Encrypt sensitive data with standardized error handling."""
     try:
         sensitive_data = data.get("data", "")
+        if not sensitive_data:
+            raise ValidationError("Data to encrypt is required")
+            
         encrypted = security_manager.encrypt_sensitive_data(sensitive_data)
         return {
             "success": True,
             "encrypted_data": encrypted
         }
+        
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "encrypt_sensitive_data", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error encrypting data: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "encrypt_sensitive_data", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": "Failed to encrypt data"}
+            content=error.to_dict()
         )
 
 @app.post("/security/decrypt-data")
@@ -2462,19 +2592,29 @@ async def decrypt_sensitive_data(
     data: dict,
     current_user: dict = Depends(get_current_user)
 ):
-    """Decrypt sensitive data."""
+    """Decrypt sensitive data with standardized error handling."""
     try:
         encrypted_data = data.get("encrypted_data", "")
+        if not encrypted_data:
+            raise ValidationError("Encrypted data is required")
+            
         decrypted = security_manager.decrypt_sensitive_data(encrypted_data)
         return {
             "success": True,
             "decrypted_data": decrypted
         }
+        
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "decrypt_sensitive_data", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error decrypting data: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "decrypt_sensitive_data", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": "Failed to decrypt data"}
+            content=error.to_dict()
         )
 
 @app.post("/security/sanitize-input")
@@ -2482,19 +2622,29 @@ async def sanitize_input(
     input_data: dict,
     current_user: dict = Depends(get_current_user)
 ):
-    """Sanitize user input."""
+    """Sanitize user input with standardized error handling."""
     try:
         input_text = input_data.get("input", "")
+        if not input_text:
+            raise ValidationError("Input text is required")
+            
         sanitized = security_manager.sanitize_input(input_text)
         return {
             "success": True,
             "sanitized_input": sanitized
         }
+        
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "sanitize_input", "user_id": current_user.get('id')})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
     except Exception as e:
-        logger.error(f"Error sanitizing input: {e}")
+        error = ErrorHandler.handle_error(e, {"endpoint": "sanitize_input", "user_id": current_user.get('id')})
         return JSONResponse(
             status_code=500,
-            content={"success": False, "message": "Failed to sanitize input"}
+            content=error.to_dict()
         )
 
 if __name__ == "__main__":

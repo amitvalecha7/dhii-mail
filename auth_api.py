@@ -19,6 +19,7 @@ from uuid import uuid4
 # Import existing components
 from security_manager import SecurityManager
 from a2ui_card_implementation import A2UICardRenderer
+from config import settings
 
 app = FastAPI(title="dhii Mail Auth API", version="1.0.0")
 
@@ -36,7 +37,7 @@ security_manager = SecurityManager()
 card_renderer = A2UICardRenderer()
 
 # JWT configuration
-SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
+SECRET_KEY = settings.jwt_secret_key  # Use unified secret key from config
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

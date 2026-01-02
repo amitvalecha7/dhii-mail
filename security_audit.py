@@ -133,7 +133,7 @@ class SecurityAuditor:
     
     def audit_main_application(self):
         """Audit the main application file"""
-        main_file = Path('/root/dhii-mail/main.py')
+        main_file = Path('main.py')
         if not main_file.exists():
             return
         
@@ -232,7 +232,7 @@ def main():
     report = auditor.generate_security_report()
     
     # Save report to file
-    report_file = Path('/root/dhii-mail/security_audit_report.md')
+    report_file = Path('security_audit_report.md')
     with open(report_file, 'w') as f:
         f.write(report)
     

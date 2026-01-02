@@ -3,13 +3,18 @@
 
 import { A2UIClient } from '@a2ui/lit';
 import { A2AClient } from '@a2a-js/sdk';
+import { frontendConfig } from './config.js';
 
 class MeetingAssistantClient {
     constructor() {
         this.a2uiClient = null;
         this.a2aClient = null;
         this.websocket = null;
-        this.userEmail = 'user@example.com'; // This should come from auth
+        
+        // Get secure configuration
+        const userConfig = frontendConfig.getUserConfig();
+        this.userEmail = userConfig.email;
+        
         this.sessionId = null;
         
         this.initializeClient();
@@ -30,9 +35,15 @@ class MeetingAssistantClient {
             });
 
             // Initialize A2A client for voice interactions
+            const a2aConfig = frontendConfig.getA2AConfig();
+            
+            if (!a2aConfig.apiKey) {
+                throw new Error('A2A API key not configured. Please set A2A_API_KEY environment variable.');
+            }
+            
             this.a2aClient = new A2AClient({
-                apiKey: 'your-a2a-api-key', // Should be from environment
-                model: 'gemini-2.0-flash-exp'
+                apiKey: a2aConfig.apiKey,
+                model: a2aConfig.model
             });
 
             // Load initial meeting list

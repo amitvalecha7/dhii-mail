@@ -37,7 +37,8 @@ security_manager = SecurityManager()
 database_manager = DatabaseManager()
 
 # JWT configuration
-SECRET_KEY = "your-secret-key-here"  # In production, use environment variable
+import os
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")  # In production, use environment variable
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

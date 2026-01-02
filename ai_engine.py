@@ -8,6 +8,7 @@ import json
 import logging
 import asyncio
 import aiohttp
+import re
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel
@@ -416,6 +417,109 @@ Always confirm details before taking actions, and provide clear feedback about w
             return self._generate_general_response(message, context)
     
     def _generate_general_response(self, message: str, context: Dict[str, Any]) -> str:
+        """Generate general chat response with enhanced context awareness and error handling"""
+        message_lower = message.lower().strip()
+        
+        # Enhanced greeting responses with context awareness
+        greetings = ['hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening']
+        if any(greeting in message_lower for greeting in greetings):
+            # Check if user has been active recently
+            if self._is_new_session(context):
+                return "Hello! I'm dhii, your AI assistant for email and calendar management. I can help you schedule meetings, send emails, check your calendar, and more. What would you like to accomplish today?"
+            else:
+                return "Hello again! Welcome back. How can I assist you with your email and calendar management today?"
+        
+        # Enhanced gratitude responses
+        thanks = ['thank', 'thanks', 'appreciate', 'grateful']
+        if any(thank in message_lower for thank in thanks):
+            gratitude_responses = [
+                "You're welcome! I'm happy to help. Is there anything else I can assist you with?",
+                "My pleasure! Feel free to ask if you need help with anything else.",
+                "Glad I could help! What else would you like to accomplish today?"
+            ]
+            return gratitude_responses[hash(message) % len(gratitude_responses)]
+        
+        # Enhanced help requests
+        help_words = ['help', 'assist', 'support', 'guide']
+        if any(help_word in message_lower for help_word in help_words):
+            return "I can help you with a variety of tasks:\n\n📧 **Email Management**: Send emails, check inbox, manage drafts\n📅 **Calendar Scheduling**: Schedule meetings, check availability, view events\n👥 **Contact Management**: Create and manage contacts\n🎥 **Video Conferences**: Set up meeting rooms\n\nWhat would you like to do? Just tell me naturally, like 'Schedule a meeting for tomorrow' or 'Send an email to John'."
+        
+        # Handle unclear or ambiguous requests
+        if self._is_ambiguous_request(message_lower):
+            return "I'm not quite sure what you'd like to do. Could you provide more details? For example:\n\n• 'Schedule a 30-minute meeting for tomorrow at 2 PM'\n• 'Send an email to john@example.com about the project update'\n• 'Check my calendar for today'\n• 'What meetings do I have this week?'\n\nWhat would you like to accomplish?"
+        
+        # Handle requests for capabilities or features
+        capability_words = ['what can you do', 'your capabilities', 'features', 'abilities', 'what do you do']
+        if any(capability in message_lower for capability in capability_words):
+            return "I'm dhii, your AI assistant specialized in email and calendar management. Here's what I can help you with:\n\n📧 **Email Features**:\n   • Send emails to individuals or groups\n   • Check your email accounts and inbox\n   • Manage email drafts\n   • Set up email accounts\n\n📅 **Calendar Features**:\n   • Schedule meetings and appointments\n   • Check your availability\n   • View your daily/weekly schedule\n   • Find available time slots\n\n👥 **Contact Management**:\n   • Create new contacts\n   • Manage contact information\n\n🎥 **Video Conferences**:\n   • Create video meeting rooms\n   • Set up conference calls\n\nJust tell me what you'd like to do in natural language!"
+        
+        # Handle status check requests
+        status_words = ['status', 'how are you', 'what\'s up', 'how\'s it going']
+        if any(status_word in message_lower for status_word in status_words):
+            return "I'm doing great and ready to help you manage your emails and calendar! What can I assist you with today?"
+        
+        # Handle goodbye/farewell
+        goodbye_words = ['bye', 'goodbye', 'see you', 'farewell', 'talk to you later']
+        if any(goodbye in message_lower for goodbye in goodbye_words):
+            return "Goodbye! Feel free to reach out anytime you need help with your email or calendar management. Have a great day!"
+        
+        # Handle confusion or error states
+        confusion_words = ['confused', 'don\'t understand', 'lost', 'stuck']
+        if any(confusion in message_lower for confusion in confusion_words):
+            return "I understand you might be having some difficulty. Let me help clarify what I can do:\n\n• **For meetings**: Say 'Schedule a meeting for [date] at [time]'\n• **For emails**: Say 'Send an email to [person] about [subject]'\n• **For calendar**: Say 'Check my calendar for [date]'\n• **For help**: Say 'What can you do?' or 'Help me with [task]'\n\nWhat would you like to accomplish?"
+        
+        # Enhanced default response with more context and guidance
+        return "I understand you're reaching out, but I'm not quite sure what specific task you'd like help with. I specialize in:\n\n• Email management and sending\n• Calendar scheduling and meetings\n• Contact management\n• Video conference setup\n\nCould you tell me more specifically what you'd like to do? For example: 'I want to schedule a meeting' or 'I need to send an email'."
+    
+    def _is_new_session(self, context: Dict[str, Any]) -> bool:
+        """Check if this is a new user session"""
+        if not context or 'session_data' not in context:
+            return True
+        
+        session_data = context['session_data']
+        if 'conversation_history' not in session_data:
+            return True
+        
+        # Check if last interaction was more than 30 minutes ago
+        if session_data['conversation_history']:
+            last_interaction = session_data['conversation_history'][-1]
+            if 'timestamp' in last_interaction:
+                try:
+                    last_time = datetime.fromisoformat(last_interaction['timestamp'])
+                    time_diff = datetime.now(timezone.utc) - last_time
+                    return time_diff.total_seconds() > 1800  # 30 minutes
+                except (ValueError, AttributeError):
+                    return True
+        
+        return True
+    
+    def _is_ambiguous_request(self, message: str) -> bool:
+        """Check if the user request is ambiguous or unclear"""
+        # Common ambiguous patterns
+        ambiguous_patterns = [
+            r'\b(do|make|create|schedule|send|check)\s+it\b',
+            r'\b(do|make|create|schedule|send|check)\s+that\b',
+            r'\b(do|make|create|schedule|send|check)\s+this\b',
+            r'\b(something|anything|everything)\b',
+            r'^\s*(yes|no|maybe|ok|sure)\s*$',
+            r'\b(thing|stuff|work|project)\b.*\b(do|make|create|schedule|send|check)\b',
+            r'^\s*\?\s*$',  # Just a question mark
+            r'^\s*help\s*$',  # Just "help"
+            r'^\s*i\s+(don\'t|do\s+not)\s+know\s*$',
+            r'^\s*i\s+need\s+(to\s+)?\b(do|make|create|schedule|send|check)\b\s+something\s*$'
+        ]
+        
+        for pattern in ambiguous_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                return True
+        
+        # Check if message is too short and doesn't contain specific entities
+        if len(message) < 10 and not any(word in message for word in ['email', 'meeting', 'calendar', 'schedule', 'send']):
+            return True
+        
+        return False
+    
+    def _generate_general_response(self, message: str, context: Dict[str, Any]) -> str:
         """Generate general chat response"""
         # Simple pattern-based responses for now
         message_lower = message.lower()
@@ -635,14 +739,19 @@ Always confirm details before taking actions, and provide clear feedback about w
         return session_data
     
     async def _call_openrouter_api(self, messages: List[Dict[str, str]], model: str = "meta-llama/llama-3.1-8b-instruct") -> Optional[str]:
-        """Call OpenRouter API for AI response"""
+        """Call OpenRouter API for AI response with enhanced error handling and retry logic"""
         if not self.use_openrouter:
+            return None
+        
+        # Validate API key
+        if not self.openrouter_api_key or self.openrouter_api_key.strip() == "":
+            logger.warning("OpenRouter API key not configured")
             return None
         
         headers = {
             "Authorization": f"Bearer {self.openrouter_api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://dhii-mail.local",  # Replace with your actual domain
+            "HTTP-Referer": "https://dhii-mail.local",
             "X-Title": "dhii Mail AI Assistant"
         }
         
@@ -654,42 +763,225 @@ Always confirm details before taking actions, and provide clear feedback about w
             "stream": False
         }
         
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.openrouter_api_url, headers=headers, json=payload) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        if 'choices' in result and len(result['choices']) > 0:
-                            return result['choices'][0]['message']['content'].strip()
-                    else:
-                        logger.error(f"OpenRouter API error: {response.status} - {await response.text()}")
-                        return None
-        except Exception as e:
-            logger.error(f"OpenRouter API call failed: {e}")
-            return None
+        # Implement retry logic with exponential backoff
+        max_retries = 3
+        base_delay = 1  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+                    async with session.post(self.openrouter_api_url, headers=headers, json=payload) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            if 'choices' in result and len(result['choices']) > 0:
+                                content = result['choices'][0]['message']['content'].strip()
+                                logger.info(f"OpenRouter API call successful on attempt {attempt + 1}")
+                                return content
+                            else:
+                                logger.warning(f"OpenRouter API returned empty choices on attempt {attempt + 1}")
+                                return None
+                        elif response.status == 429:  # Rate limit
+                            logger.warning(f"OpenRouter API rate limit hit on attempt {attempt + 1}")
+                            if attempt < max_retries - 1:
+                                delay = base_delay * (2 ** attempt)  # Exponential backoff
+                                await asyncio.sleep(delay)
+                                continue
+                            else:
+                                logger.error("OpenRouter API rate limit exceeded after all retries")
+                                return None
+                        elif response.status >= 500:  # Server error
+                            logger.warning(f"OpenRouter API server error {response.status} on attempt {attempt + 1}")
+                            if attempt < max_retries - 1:
+                                delay = base_delay * (2 ** attempt)  # Exponential backoff
+                                await asyncio.sleep(delay)
+                                continue
+                            else:
+                                logger.error(f"OpenRouter API server error {response.status} after all retries")
+                                return None
+                        else:
+                            error_text = await response.text()
+                            logger.error(f"OpenRouter API error: {response.status} - {error_text}")
+                            return None
+                            
+            except asyncio.TimeoutError:
+                logger.warning(f"OpenRouter API timeout on attempt {attempt + 1}")
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    logger.error("OpenRouter API timeout after all retries")
+                    return None
+                    
+            except aiohttp.ClientError as e:
+                logger.warning(f"OpenRouter API client error on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"OpenRouter API client error after all retries: {e}")
+                    return None
+                    
+            except Exception as e:
+                logger.error(f"OpenRouter API unexpected error on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"OpenRouter API unexpected error after all retries: {e}")
+                    return None
+        
+        logger.error("OpenRouter API call failed after all retry attempts")
+        return None
     
     async def _generate_openrouter_response(self, message: str, context: Dict[str, Any]) -> Optional[str]:
-        """Generate response using OpenRouter API"""
-        # Build conversation history
-        messages = [{"role": "system", "content": self.system_prompt}]
+        """Generate response using OpenRouter API with enhanced context and error handling"""
+        try:
+            # Build enhanced system prompt with current context
+            enhanced_system_prompt = self._build_enhanced_system_prompt(context)
+            
+            # Build conversation history with better context preservation
+            messages = [{"role": "system", "content": enhanced_system_prompt}]
+            
+            # Add recent conversation history for context (last 5 interactions)
+            if 'conversation_history' in context and context['conversation_history']:
+                recent_history = context['conversation_history'][-5:]
+                for item in recent_history:
+                    if 'intent' in item and 'entities' in item:
+                        # Add user intent as user message
+                        user_content = f"Previous request: Intent was '{item['intent']}'"
+                        if item['entities']:
+                            user_content += f" with entities: {json.dumps(item['entities'])}"
+                        messages.append({"role": "user", "content": user_content})
+                        
+                        # Add assistant response as assistant message
+                        assistant_content = "I processed that request and am ready for your next question."
+                        messages.append({"role": "assistant", "content": assistant_content})
+            
+            # Add current message with context about available capabilities
+            current_context = self._get_current_context_for_openrouter(context)
+            enhanced_user_message = f"{message}\n\nContext: {current_context}"
+            messages.append({"role": "user", "content": enhanced_user_message})
+            
+            # Try to get response from OpenRouter with fallback handling
+            response = await self._call_openrouter_api(messages)
+            
+            if response:
+                logger.info(f"OpenRouter response generated successfully")
+                
+                # Validate response quality
+                if self._is_valid_openrouter_response(response):
+                    return response
+                else:
+                    logger.warning("OpenRouter response failed quality validation, falling back to pattern-based")
+                    return None
+            
+            logger.info("OpenRouter API returned no response, will fall back to pattern-based")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error generating OpenRouter response: {e}")
+            return None
+    
+    def _build_enhanced_system_prompt(self, context: Dict[str, Any]) -> str:
+        """Build enhanced system prompt with current context"""
+        base_prompt = self.system_prompt
         
-        # Add conversation history if available
-        if 'conversation_history' in context:
-            for item in context['conversation_history'][-5:]:  # Last 5 messages
-                messages.append({"role": "user", "content": f"Intent: {item['intent']}"})
-                messages.append({"role": "assistant", "content": f"Entities: {json.dumps(item['entities'])}"})
+        # Add user context if available
+        user_context = ""
+        if context and 'user_id' in context:
+            user_context += f" You are assisting user {context['user_id']}."
         
-        # Add current message
-        messages.append({"role": "user", "content": message})
+        # Add email/calendar context if available
+        if context and 'user_email' in context:
+            user_context += f" User email: {context['user_email']}."
         
-        # Try to get response from OpenRouter
-        response = await self._call_openrouter_api(messages)
+        # Add current time context
+        current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        user_context += f" Current time: {current_time}."
         
-        if response:
-            logger.info(f"OpenRouter response generated successfully")
-            return response
+        enhanced_prompt = f"""{base_prompt}
+
+Current Context:{user_context}
+
+You are dhii, a specialized AI assistant for email and calendar management. Your responses should be:
+- Helpful and specific to email/calendar tasks
+- Natural and conversational
+- Action-oriented with clear next steps
+- Context-aware of the user's previous requests
+- Professional but friendly
+
+When responding:
+1. Acknowledge the user's request clearly
+2. Provide relevant, actionable information
+3. Suggest specific next steps or alternatives
+4. Keep responses concise but comprehensive
+5. Use appropriate formatting (bullet points, emojis) when helpful"""
         
-        return None
+        return enhanced_prompt
+    
+    def _get_current_context_for_openrouter(self, context: Dict[str, Any]) -> str:
+        """Get current context information for OpenRouter"""
+        context_parts = []
+        
+        # Add email account context
+        if context and 'user_id' in context:
+            from email_manager import email_manager
+            try:
+                email_accounts = email_manager.get_email_accounts(context['user_id'])
+                if email_accounts:
+                    context_parts.append(f"User has {len(email_accounts)} email account(s) configured")
+                else:
+                    context_parts.append("User has no email accounts configured yet")
+            except Exception:
+                context_parts.append("Email account status unknown")
+        
+        # Add calendar context
+        context_parts.append("Calendar integration available")
+        
+        # Add recent activity context
+        if context and 'conversation_history' in context and context['conversation_history']:
+            recent_intents = [item['intent'] for item in context['conversation_history'][-3:] if 'intent' in item]
+            if recent_intents:
+                context_parts.append(f"Recent user activities: {', '.join(set(recent_intents))}")
+        
+        return "; ".join(context_parts) if context_parts else "Email and calendar management system ready"
+    
+    def _is_valid_openrouter_response(self, response: str) -> bool:
+        """Validate OpenRouter response quality"""
+        if not response or not response.strip():
+            return False
+        
+        response = response.strip()
+        
+        # Check for obviously problematic responses
+        if len(response) < 5:  # Too short
+            return False
+        
+        if len(response) > 2000:  # Too long for typical responses
+            return False
+        
+        # Check for repetitive or nonsensical patterns
+        if response.count(response[:20]) > 3:  # Highly repetitive
+            return False
+        
+        # Check for inappropriate content (basic filter)
+        inappropriate_words = ['<script', 'javascript:', 'data:', 'vbscript:', 'onload', 'onerror']
+        if any(word in response.lower() for word in inappropriate_words):
+            return False
+        
+        # Check if response is relevant to email/calendar context
+        relevant_keywords = ['email', 'meeting', 'calendar', 'schedule', 'send', 'appointment', 'contact']
+        if not any(keyword in response.lower() for keyword in relevant_keywords):
+            # If no relevant keywords, check if it's a general greeting/help response
+            general_keywords = ['hello', 'hi', 'help', 'assist', 'welcome', 'good']
+            if not any(keyword in response.lower() for keyword in general_keywords):
+                logger.warning("OpenRouter response lacks relevant context keywords")
+                return False
+        
+        return True
 
 # Global AI engine instance
 ai_engine = AIEngine()
