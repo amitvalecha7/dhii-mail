@@ -173,9 +173,20 @@
 - ✅ IMAP Connection Logic
 - ✅ A2UI Rendering Logic
 
+### ✅ Issue #36: Dhii-Calendar (Core Calendar Plugin)
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Build the Calendar integration.
+**Deliverables**:
+- ✅ Plugin Manifest & Structure
+- ✅ Capability: fetch_events (A2UI Schedule View)
+- ✅ Capability: create_event (Scheduling Logic)
+- ✅ Integration Tests (Passed)
+- ✅ Whitelisted 'time' module in Sandbox
+
 ## Next Recommended Issue
 
-**Issue #36: Calendar Plugin** - Build the Calendar integration.
+**Issue #37: Dhii-Contacts (Core Contacts Plugin)** - Manage relationships and context.
 
 ---
 *Last Updated: 2025-01-04*

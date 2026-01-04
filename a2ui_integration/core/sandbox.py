@@ -13,7 +13,8 @@ def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     """
     ALLOWED_MODULES = {
         'json', 'datetime', 're', 'math', 'random', 'logging', 'uuid',
-        'imaplib', 'email', 'ssl', 'socket', 'binascii', 'base64', 'quopri'
+        'imaplib', 'email', 'ssl', 'socket', 'binascii', 'base64', 'quopri',
+        'time'
     }
     
     if name in ALLOWED_MODULES or name.split('.')[0] in ALLOWED_MODULES:

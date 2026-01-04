@@ -49,7 +49,7 @@ Establish the **Dhii Mail Core Kernel** as a stable, observable, and extensible 
   - Developer tools for building Dhii Mail plugins.
 - **[IN PROGRESS] Domain Plugins**
   - **Hyper-Mail**: Next-gen email experience (Issue #35) - [COMPLETED].
-  - **Chrono-Calendar**: AI-managed scheduling (Issue #36).
+  - **Chrono-Calendar**: AI-managed scheduling (Issue #36) - [COMPLETED].
   - **Holo-Meet**: Meeting intelligence (Issue #37).
   - **Deal-Flow CRM**: Sales pipeline integration (Issue #40).
 - **[PLANNED] Skill Store** (Issue #22)

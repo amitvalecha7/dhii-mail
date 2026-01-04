@@ -1,0 +1,52 @@
+{
+  "id": "dhii_calendar",
+  "name": "Dhii-Calendar",
+  "version": "0.1.0",
+  "description": "AI-managed scheduling and calendar management",
+  "type": "calendar",
+  "author": "Dhii Team",
+  "capabilities": [
+    {
+      "id": "fetch_events",
+      "domain": "calendar",
+      "name": "Fetch Events",
+      "description": "Returns scheduled events for a given date range",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "start_date": {"type": "string", "format": "date"},
+          "end_date": {"type": "string", "format": "date"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "description": "A2UI Component Graph displaying events"
+      },
+      "side_effects": false,
+      "requires_auth": true
+    },
+    {
+      "id": "create_event",
+      "domain": "calendar",
+      "name": "Create Event",
+      "description": "Schedules a new event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "start_time": {"type": "string", "format": "date-time"},
+          "end_time": {"type": "string", "format": "date-time"},
+          "description": {"type": "string"}
+        },
+        "required": ["title", "start_time", "end_time"]
+      },
+      "output_schema": {
+        "type": "object",
+        "description": "Confirmation card"
+      },
+      "side_effects": true,
+      "requires_auth": true
+    }
+  ],
+  "dependencies": []
+}
