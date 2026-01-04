@@ -16,6 +16,7 @@ from .types import (
 )
 from .shared_services import SharedServices, get_shared_services, EventType, Event
 from .logging import get_logger
+from .runner import PluginRunner
 
 logger = get_logger(__name__)
 
@@ -86,10 +87,41 @@ class Kernel(KernelInterface):
         self._load_plugins()
     
     def _load_plugin(self, plugin_id: str):
-        """Load a specific plugin"""
-        # This would dynamically load the plugin module
-        # For now, we'll use the existing plugin manager
-        pass
+        """Load a specific plugin using the Glass Wall Sandbox"""
+        try:
+            # 1. Provide the Kernel Interface API to the plugin
+            kernel_context = {
+                "log": logger.info,
+                "error": logger.error,
+                # In future, we can add register_capability, emit_event etc here.
+                # For now, simplistic logger availability.
+            }
+            
+            # 2. Get Plugin Source (Simulated: Reading from plugins_dir)
+            # Assuming self.plugin_installer.plugins_dir is available or we reconstruct path
+            plugin_path = Path("plugins") / plugin_id / "__init__.py"
+            
+            if not plugin_path.exists():
+                logger.error(f"Plugin source not found for {plugin_id}")
+                return
+
+            with open(plugin_path, "r") as f:
+                source_code = f.read()
+
+            # 3. Create Runner
+            runner = PluginRunner(plugin_id, source_code, {}, kernel_context)
+            
+            # 4. Load
+            if runner.load_and_register():
+                # For MVP, we treat the 'runner' as the domain module if it succeeded
+                # In a full impl, we'd wrap the runner's registered capabilities
+                self._plugins[plugin_id] = runner
+                logger.info(f"Plugin {plugin_id} loaded safely via Glass Wall.")
+            else:
+                logger.error(f"Plugin {plugin_id} failed to load via Glass Wall.")
+
+        except Exception as e:
+            logger.error(f"Critical error loading plugin {plugin_id}: {e}")
     
     def register_plugin_instance(self, plugin_id: str, plugin_instance: DomainModule) -> bool:
         """Register an actual plugin instance that can execute capabilities"""
