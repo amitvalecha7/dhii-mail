@@ -90,12 +90,13 @@
 **Date**: 2025-01-04
 **Description**: Formalized the JSON Schema for AppShell, Cards, and Panes in `A2UI_SCHEMA.md`.
 
-### � Issue #52: Strategy: Plugin SDK Governance
-**Status**: IN PROGRESS
-**Description**: Define sandbox rules, memory limits, and import restrictions.
+### ✅ Issue #52: Strategy: Plugin SDK Governance
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Defined sandbox rules, memory limits, and import restrictions in `PLUGIN_GOVERNANCE.md`.
 
-### 📋 Issue #53: Strategy: Orchestrator API Contract
-**Status**: PENDING
+### � Issue #53: Strategy: Orchestrator API Contract
+**Status**: IN PROGRESS
 **Description**: Document the protocol for Agent-to-UI communication.
 
 ## Next Recommended Issue
