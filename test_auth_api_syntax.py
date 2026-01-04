@@ -12,7 +12,9 @@ def test_auth_api_syntax():
     
     try:
         # Read and parse the auth_api.py file
-        with open('/root/dhii-mail/auth_api.py', 'r') as f:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, 'auth_api.py')
+        with open(file_path, 'r') as f:
             content = f.read()
         
         # Parse the AST to check syntax
@@ -68,7 +70,9 @@ def test_no_legacy_jwt_config():
     """Test that auth_api.py doesn't have legacy JWT configuration"""
     
     try:
-        with open('/root/dhii-mail/auth_api.py', 'r') as f:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, 'auth_api.py')
+        with open(file_path, 'r') as f:
             content = f.read()
         
         # Check for legacy JWT configuration

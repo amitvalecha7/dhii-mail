@@ -63,6 +63,28 @@ class A2UIComponent(BaseModel):
     parent_id: Optional[str] = None
 
 
+class Card(A2UIComponent):
+    """Represents a Card in the A2UI Adjacency List"""
+    type: str = "card"
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    priority: int = 0
+    actions: List[Dict[str, Any]] = []
+
+
+class Pane(A2UIComponent):
+    """Represents a Pane/Column in the A2UI Layout"""
+    type: str = "pane"
+    width: str = "300px"
+    cards: List[Card] = []
+
+
+class AppShell(A2UIComponent):
+    """Represents the top-level AppShell"""
+    type: str = "app_shell"
+    panes: List[Pane] = []
+
+
 class PluginConfig(BaseModel):
     """Configuration for a plugin"""
     id: str
