@@ -145,9 +145,14 @@
 **Date**: 2025-01-04
 **Description**: Created Kubernetes manifests (`k8s/`) for API Gateway, Plugin Registry, Mock Orchestrator, Postgres, and Redis.
 
+### ✅ Issue #63: Documentation: Architecture Overview
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Consolidated architectural decisions, component diagrams, and security models into `ARCHITECTURE.md`.
+
 ## Next Recommended Issue
 
-**Issue #63: Documentation: Architecture Overview** - Consolidate architectural decisions and component diagrams into a central document.
+**Issue #64: Feature: Plugin Installation Logic** - Implement the core logic in the Kernel to fetch, validate, and install plugins from the Registry.
 
 ---
 *Last Updated: 2025-01-04*
