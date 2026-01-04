@@ -1,0 +1,110 @@
+{
+  "id": "calendar_plugin",
+  "name": "Calendar Plugin",
+  "version": "1.0.0",
+  "description": "Handles calendar operations including event creation, management, and scheduling",
+  "type": "calendar",
+  "author": "dhii-mail",
+  "enabled": true,
+  "dependencies": {
+    "pydantic": "^2.0.0"
+  },
+  "capabilities": [
+    {
+      "id": "calendar_create_event",
+      "domain": "calendar",
+      "name": "Create Calendar Event",
+      "description": "Create a new calendar event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "start_time": {"type": "string", "format": "date-time"},
+          "end_time": {"type": "string", "format": "date-time"},
+          "location": {"type": "string"},
+          "attendees": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["title", "start_time", "end_time"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {"type": "string"},
+          "status": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    },
+    {
+      "id": "calendar_update_event",
+      "domain": "calendar",
+      "name": "Update Calendar Event",
+      "description": "Update an existing calendar event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {"type": "string"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "start_time": {"type": "string", "format": "date-time"},
+          "end_time": {"type": "string", "format": "date-time"},
+          "location": {"type": "string"},
+          "attendees": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["event_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {"type": "string"},
+          "status": {"type": "string"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    },
+    {
+      "id": "calendar_delete_event",
+      "domain": "calendar",
+      "name": "Delete Calendar Event",
+      "description": "Delete a calendar event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {"type": "string"}
+        },
+        "required": ["event_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {"type": "string"},
+          "status": {"type": "string"},
+          "deleted_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  ],
+  "ui_routes": [
+    {
+      "path": "/calendar",
+      "name": "Calendar Dashboard",
+      "component": "CalendarDashboard",
+      "description": "Main calendar management interface"
+    },
+    {
+      "path": "/calendar/events",
+      "name": "Event Management",
+      "component": "EventManager",
+      "description": "Event creation and management interface"
+    }
+  ],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "timezone": {"type": "string", "default": "UTC"},
+      "default_duration": {"type": "integer", "default": 60},
+      "enable_reminders": {"type": "boolean", "default": true}
+    }
+  }
+}

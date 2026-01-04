@@ -1,7 +1,6 @@
 """
-Kernel Plugin Integration Module
-Integrates existing plugin managers with the new kernel architecture
-Refactored with Lazy Loading & Dynamic Discovery (Issue #34)
+Refactored Kernel Plugin Integration with Lazy Loading & Dynamic Discovery
+Addresses Issue #34: Refactor Kernel Bridge - Lazy Loading & Dynamic Discovery
 """
 
 import logging
@@ -143,7 +142,7 @@ class KernelPluginIntegration:
             enabled=manifest.get('enabled', True),
             config=manifest.get('config', {}),
             capabilities=capabilities,
-            dependencies=list(manifest.get('dependencies', {}).keys())
+            dependencies=manifest.get('dependencies', {}).keys()
         )
     
     async def _initialize_plugin_instance(self, plugin_path: str, manifest: Dict[str, Any]):

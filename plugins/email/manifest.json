@@ -1,0 +1,87 @@
+{
+  "id": "email_plugin",
+  "name": "Email Plugin",
+  "version": "1.0.0",
+  "description": "Handles email operations including sending, receiving, and processing",
+  "type": "email",
+  "author": "dhii-mail",
+  "enabled": true,
+  "dependencies": {
+    "aiohttp": "^3.8.0",
+    "fastapi": "^0.104.0"
+  },
+  "capabilities": [
+    {
+      "id": "email_send",
+      "domain": "email",
+      "name": "Send Email",
+      "description": "Send an email message",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "to": {"type": "string"},
+          "subject": {"type": "string"},
+          "body": {"type": "string"},
+          "attachments": {"type": "array"}
+        },
+        "required": ["to", "subject", "body"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "message_id": {"type": "string"},
+          "status": {"type": "string"},
+          "timestamp": {"type": "string", "format": "date-time"}
+        }
+      }
+    },
+    {
+      "id": "email_receive",
+      "domain": "email",
+      "name": "Receive Email",
+      "description": "Receive email messages",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "folder": {"type": "string", "default": "INBOX"},
+          "limit": {"type": "integer", "default": 10}
+        }
+      },
+      "output_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "message_id": {"type": "string"},
+            "from": {"type": "string"},
+            "subject": {"type": "string"},
+            "date": {"type": "string", "format": "date-time"}
+          }
+        }
+      }
+    }
+  ],
+  "ui_routes": [
+    {
+      "path": "/email",
+      "name": "Email Dashboard",
+      "component": "EmailDashboard",
+      "description": "Main email management interface"
+    },
+    {
+      "path": "/email/compose",
+      "name": "Compose Email",
+      "component": "EmailCompose",
+      "description": "Email composition interface"
+    }
+  ],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "smtp_enabled": {"type": "boolean", "default": true},
+      "imap_enabled": {"type": "boolean", "default": true},
+      "max_connections": {"type": "integer", "default": 10},
+      "retry_attempts": {"type": "integer", "default": 3}
+    }
+  }
+}
