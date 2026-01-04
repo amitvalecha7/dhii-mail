@@ -1,0 +1,50 @@
+{
+  "id": "dhii_contacts",
+  "name": "Dhii-Contacts",
+  "version": "0.1.0",
+  "description": "Manage your personal and professional network",
+  "type": "contacts",
+  "author": "Dhii Team",
+  "capabilities": [
+    {
+      "id": "fetch_contacts",
+      "domain": "contacts",
+      "name": "Fetch Contacts",
+      "description": "Returns a list of contacts",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {"type": "string"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "description": "A2UI Component Graph displaying contacts"
+      },
+      "side_effects": false,
+      "requires_auth": true
+    },
+    {
+      "id": "add_contact",
+      "domain": "contacts",
+      "name": "Add Contact",
+      "description": "Creates a new contact",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "email": {"type": "string", "format": "email"},
+          "phone": {"type": "string"}
+        },
+        "required": ["name"]
+      },
+      "output_schema": {
+        "type": "object",
+        "description": "Confirmation card"
+      },
+      "side_effects": true,
+      "requires_auth": true
+    }
+  ],
+  "dependencies": []
+}

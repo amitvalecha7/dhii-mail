@@ -184,9 +184,19 @@
 - ✅ Integration Tests (Passed)
 - ✅ Whitelisted 'time' module in Sandbox
 
+### ✅ Issue #37: Dhii-Contacts (Core Contacts Plugin)
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Manage relationships and context.
+**Deliverables**:
+- ✅ Plugin Manifest & Structure
+- ✅ Capability: fetch_contacts (Search & List)
+- ✅ Capability: add_contact (CRUD Logic)
+- ✅ Integration Tests (Passed)
+
 ## Next Recommended Issue
 
-**Issue #37: Dhii-Contacts (Core Contacts Plugin)** - Manage relationships and context.
+**Issue #38: Plugin-Search (Plugin Discovery)**
 
 ---
 *Last Updated: 2025-01-04*
