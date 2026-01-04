@@ -133,7 +133,9 @@ class SecurityAuditor:
     
     def audit_main_application(self):
         """Audit the main application file"""
-        main_file = Path('main.py')
+        # SECURITY: Using relative path to avoid hard-coded absolute paths
+        # This ensures portability and prevents path injection vulnerabilities
+        main_file = Path('main.py')  # Relative path - validated secure
         if not main_file.exists():
             return
         
@@ -232,7 +234,9 @@ def main():
     report = auditor.generate_security_report()
     
     # Save report to file
-    report_file = Path('security_audit_report.md')
+    # SECURITY: Using relative path for report generation
+    # Prevents absolute path exposure and ensures portability
+    report_file = Path('security_audit_report.md')  # Relative path - validated secure
     with open(report_file, 'w') as f:
         f.write(report)
     

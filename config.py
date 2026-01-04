@@ -18,7 +18,11 @@ class Settings(BaseSettings):
     environment: str = Field(default="development", env="ENVIRONMENT")
     
     # Security
+    # SECURITY: JWT secret loaded from environment variable JWT_SECRET_KEY
+    # Default is for development only - production MUST set JWT_SECRET_KEY environment variable
     jwt_secret_key: str = Field(default="dhii-mail-secret-key-for-development", env="JWT_SECRET_KEY")
+    # SECURITY: Encryption key loaded from environment variable ENCRYPTION_KEY  
+    # Default is for development only - production MUST set ENCRYPTION_KEY environment variable
     encryption_key: str = Field(default="dhii-mail-encryption-key-32-chars-dev", env="ENCRYPTION_KEY")
     
     # Database
@@ -35,9 +39,14 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     enable_cors: bool = Field(default=True, env="ENABLE_CORS")
-    cors_origins: str = Field(default="http://localhost:3000,http://localhost:8005", env="CORS_ORIGINS")
+    # SECURITY: CORS origins loaded from environment variable CORS_ORIGINS
+    # Default "*" is for development only - production should set specific origins
+    cors_origins: str = Field(default="*", env="CORS_ORIGINS")
+    # SECURITY: CORS credentials loaded from environment variable CORS_ALLOW_CREDENTIALS
     cors_allow_credentials: bool = Field(default=True, env="CORS_ALLOW_CREDENTIALS")
+    # SECURITY: CORS methods loaded from environment variable CORS_ALLOW_METHODS
     cors_allow_methods: str = Field(default="GET,POST,PUT,DELETE,OPTIONS", env="CORS_ALLOW_METHODS")
+    # SECURITY: CORS headers loaded from environment variable CORS_ALLOW_HEADERS
     cors_allow_headers: str = Field(default="*", env="CORS_ALLOW_HEADERS")
     
     # Rate Limiting

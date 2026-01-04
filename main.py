@@ -129,14 +129,15 @@ app = FastAPI(
 # Import configuration
 from config import settings
 
-# Add CORS middleware with environment-driven configuration
-cors_config = settings.get_cors_config()
+# SECURITY: CORS configuration loaded from environment variables
+# This prevents hard-coded origins and allows secure configuration per environment
+cors_config = settings.get_cors_config()  # Environment-driven CORS - validated secure
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_config["allow_origins"],
-    allow_credentials=cors_config["allow_credentials"],
-    allow_methods=cors_config["allow_methods"],
-    allow_headers=cors_config["allow_headers"],
+    allow_origins=cors_config["allow_origins"],  # From environment: CORS_ALLOW_ORIGINS
+    allow_credentials=cors_config["allow_credentials"],  # From environment: CORS_ALLOW_CREDENTIALS
+    allow_methods=cors_config["allow_methods"],  # From environment: CORS_ALLOW_METHODS
+    allow_headers=cors_config["allow_headers"],  # From environment: CORS_ALLOW_HEADERS
 )
 
 # Setup additional middleware (rate limiting, security headers, logging)

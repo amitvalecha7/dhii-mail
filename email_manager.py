@@ -302,6 +302,8 @@ class EmailManager:
         cursor = conn.cursor()
         
         # Email accounts table
+        # SECURITY: All password fields store encrypted data using security_manager.encrypt_sensitive_data()
+        # Passwords are encrypted before storage and decrypted after retrieval
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS email_accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -311,12 +313,12 @@ class EmailManager:
                 smtp_server TEXT NOT NULL,
                 smtp_port INTEGER DEFAULT 587,
                 smtp_username TEXT NOT NULL,
-                smtp_password TEXT NOT NULL,
+                smtp_password TEXT NOT NULL,  -- ENCRYPTED: Stores encrypted password data
                 smtp_use_tls BOOLEAN DEFAULT 1,
                 imap_server TEXT NOT NULL,
                 imap_port INTEGER DEFAULT 993,
                 imap_username TEXT NOT NULL,
-                imap_password TEXT NOT NULL,
+                imap_password TEXT NOT NULL,  -- ENCRYPTED: Stores encrypted password data
                 imap_use_ssl BOOLEAN DEFAULT 1,
                 is_active BOOLEAN DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -365,7 +367,8 @@ class EmailManager:
     def add_email_account(self, account: EmailAccount) -> Optional[int]:
         """Add a new email account with encrypted passwords"""
         try:
-            # Encrypt passwords before storing
+            # SECURITY: Encrypt passwords before storing to prevent plaintext exposure
+            # This ensures database only contains encrypted password data
             encrypted_smtp_password = security_manager.encrypt_sensitive_data(account.smtp_password)
             encrypted_imap_password = security_manager.encrypt_sensitive_data(account.imap_password)
             

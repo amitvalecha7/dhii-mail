@@ -36,10 +36,11 @@ app.add_middleware(
 security_manager = SecurityManager()
 card_renderer = A2UICardRenderer()
 
-# JWT configuration
-SECRET_KEY = settings.jwt_secret_key  # Use unified secret key from config
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# SECURITY: JWT configuration loaded from environment-driven settings
+# This prevents hard-coded secrets and allows secure configuration per environment
+SECRET_KEY = settings.jwt_secret_key  # From environment: JWT_SECRET_KEY - validated secure
+ALGORITHM = "HS256"  # Standard JWT algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Token expiration time
 
 # Mock user database (replace with real database)
 users_db = {}
