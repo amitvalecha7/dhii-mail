@@ -1,39 +1,64 @@
-# 🗺️ Product Roadmap (Q1 2026)
-*Tactical Execution Plan for the "Liquid Workspace"*
+# Product Roadmap: Q1 2026
 
-**Status**: DRAFT
-**Owner**: Product Owner (PO)
+## 🎯 Objective
+Establish the **Dhii Mail Core Kernel** as a stable, observable, and extensible platform, and define the **A2UI Standard** to enable the rapid development of the Plugin Ecosystem.
+
+---
+
+## ✅ Phase 1: Foundation & Core Services (Completed)
+**Focus**: Building the bedrock. A robust, modular Kernel that supports dynamic plugins and deep observability.
+
+- **[COMPLETED] Core Kernel Architecture** (Issue #23)
+  - Plugin Lifecycle Management (Load/Unload/Reload).
+  - Dependency Injection & Service Registry.
+- **[COMPLETED] Shared Services Layer** (Issue #24)
+  - Centralized Database (SQLAlchemy), Auth (PASETO), and Event Bus.
+- **[COMPLETED] Observability Suite** (Issue #24, #25, #26)
+  - Structured Logging with Correlation IDs.
+  - Health Monitoring (Liveness/Readiness Probes).
+  - Centralized Error Tracking & APM Middleware.
+
+## ✅ Phase 2: A2UI Integration & Frontend (Completed)
+**Focus**: Proving the "AI-First" UI model. Transitioning from static templates to dynamic graph generation.
+
+- **[COMPLETED] A2UI Orchestrator Refactor** (Issue #31/25)
+  - Shift to Adjacency List Model (`ComponentGraph`) for O(1) updates.
+  - Performance benchmarking and optimization.
+- **[COMPLETED] Frontend Modernization** (Issue #32/26)
+  - Migration to `@a2ui/lit` web components.
+  - Implementation of the `MeetingAssistantApp` as a reference client.
 
 ---
 
-## 📅 Sprint 1: The Crystal Foundation (Current)
-*Goal: Stabilize the Core Engine and Define the Rules.*
+## 🚧 Phase 3: Strategy & Standardization (Current Focus)
+**Focus**: Documenting the "Laws of the Land". Ensuring all future development adheres to strict contracts.
 
-*   [x] **Core Kernel Refactor**: Verify Python Plugin System (Issue #23).
-*   [x] **Shared Services**: DB, Auth, EventBus for Plugins (Issue #24).
-*   [x] **The Schema**: Define `A2UI_SCHEMA.md` (Issue #52).
-*   [ ] **The Factory**: Build `component_factory.py` (Issue #55 - Done).
-*   [ ] **API Contract**: Document `ORCHESTRATOR_CONTRACT.md` (Issue #53).
+- **[IN PROGRESS] Product Vision & Roadmap** (Issue #50)
+  - Defining the North Star and Q1 goals.
+- **[PENDING] A2UI Schema Contract** (Issue #51)
+  - Formalizing the JSON Schema for AppShell, Cards, and Panes.
+- **[PENDING] Plugin SDK Governance** (Issue #52)
+  - Defining sandbox rules, memory limits, and import restrictions.
+- **[PENDING] Orchestrator API Contract** (Issue #53)
+  - Documenting the protocol for Agent-to-UI communication.
 
-## 📅 Sprint 2: The Ecosystem Explosion (Next)
-*Goal: Populate the Empty Shell with "Life".*
+## 📅 Phase 4: The Plugin Ecosystem (Upcoming)
+**Focus**: Expanding capabilities. Building the "Apps" that run on the OS.
 
-*   **Communication OS**:
-    *   [ ] **Hyper-Mail**: The Email Plugin (Issue #35).
-    *   [ ] **Chrono-Cal**: The Calendar Plugin (Issue #36).
-*   **Business OS**:
-    *   [ ] **Deal-Flow**: The CRM Plugin (Issue #40).
-    *   [ ] **Task-Master**: The Project Plugin (Issue #42).
-
-## 📅 Sprint 3: The "Magic" Layer (Future)
-*Goal: AI Agents that work *for* you.*
-
-*   [ ] **Agentic Component Factory**: Fully automated UI generation from text.
-*   [ ] **"Ghostwriter"**: AI that drafts emails contextually (Issue #46).
-*   [ ] **"Analyst"**: AI that visualizes spreadsheet data as A2UI Charts (Issue #47).
+- **[PLANNED] Universal Plugin SDK** (Issue #21)
+  - Developer tools for building Dhii Mail plugins.
+- **[PLANNED] Domain Plugins**
+  - **Hyper-Mail**: Next-gen email experience (Issue #35).
+  - **Chrono-Calendar**: AI-managed scheduling (Issue #36).
+  - **Holo-Meet**: Meeting intelligence (Issue #37).
+  - **Deal-Flow CRM**: Sales pipeline integration (Issue #40).
+- **[PLANNED] Skill Store** (Issue #22)
+  - Registry and marketplace for discovering plugins.
 
 ---
-## 🎯 Acceptance Criteria for Q1
-1.  **Zero "App Switching"**: A user can manage Leads, Emails, and Tasks in one view.
-2.  **Dev Speed**: A new Plugin can be scaffolded in < 5 minutes using the Factory.
-3.  **Stability**: Kernel handles 100+ active plugins without crashing.
+
+## 📈 Success Metrics (KPIs)
+1.  **System Stability**: 99.9% Kernel Uptime (excluding plugin crashes).
+2.  **Performance**: <50ms Overhead for A2UI Graph Generation.
+3.  **Adoption**: 5+ Core Plugins fully migrated to the new Architecture.
+4.  **Developer Experience**: <15 minutes to scaffold a new Plugin "Hello World".

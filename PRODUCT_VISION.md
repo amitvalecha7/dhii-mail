@@ -20,6 +20,7 @@ Legacy apps are rigid containers (Outlook, Salesforce, Trello).
 1.  **Fluidity First**: No context switching. Everything is an `A2UI Component` in a unified stream.
 2.  **Privacy by Design**: The "Kernel" runs locally. Your data is yours.
 3.  **Speed as a Feature**: < 100ms interactions. Optimistic UI always.
+4.  **AI-First, UI-Second**: The UI is a derivative of the AI's understanding of intent.
 
 ## 3. Target User Personas
 ### 👩‍💻 The "Flow" Professional
@@ -38,3 +39,13 @@ Legacy apps are rigid containers (Outlook, Salesforce, Trello).
 | **Extensibility** | Web Add-ins (Limited) | **Full Python Kernel (Unlimited)** |
 | **Intelligence** | "Smart Reply" (Text) | **"Agentic Actions" (Work)** |
 | **Data Model** | Siloed API | **Shared Knowledge Graph** |
+
+## 5. Strategic Pillars (Technical Foundation)
+### A. The A2UI Standard
+The universal language for Agents to talk to Humans. A standardized JSON schema that describes UI intent, not pixel placement.
+
+### B. The Skill Store
+A marketplace of capabilities. Developers build plugins (Skills) that the Kernel can discover, load, and orchestrate.
+
+### C. Enterprise-Grade Trust
+Observability, Security, and Governance are not afterthoughts. Deep APM integration and structured logging are built-in.
