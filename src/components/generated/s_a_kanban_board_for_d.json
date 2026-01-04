@@ -1,0 +1,22 @@
+{
+  "type": "pane",
+  "id": "s_a_kanban_board_for_d",
+  "layout": "horizontal",
+  "panes": [
+    {
+      "type": "pane",
+      "title": "To Do",
+      "cards": []
+    },
+    {
+      "type": "pane",
+      "title": "In Progress",
+      "cards": []
+    },
+    {
+      "type": "pane",
+      "title": "Done",
+      "cards": []
+    }
+  ]
+}

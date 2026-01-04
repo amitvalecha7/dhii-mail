@@ -1,0 +1,18 @@
+{
+  "type": "custom:funnel_chart",
+  "id": "c_sales_deal_funnel_ch",
+  "properties": {
+    "stages": [
+      "Lead",
+      "Qualified",
+      "Prosposal",
+      "Closed"
+    ],
+    "values": [
+      100,
+      50,
+      25,
+      10
+    ]
+  }
+}
