@@ -1,0 +1,46 @@
+{
+  "id": "dhii_whatsapp",
+  "name": "WhatsApp Bridge",
+  "version": "0.1.0",
+  "description": "Integration with external messaging via WhatsApp.",
+  "permissions": ["network"],
+  "capabilities": [
+    {
+      "id": "get_threads",
+      "type": "action",
+      "name": "Get Threads",
+      "description": "Fetch recent chat threads",
+      "input_schema": {},
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "const": "card"},
+          "title": {"type": "string"},
+          "children": {"type": "array"}
+        }
+      }
+    },
+    {
+      "id": "send_message",
+      "type": "action",
+      "name": "Send Message",
+      "description": "Send a WhatsApp message",
+      "input_schema": {
+        "type": "object",
+        "required": ["to", "message"],
+        "properties": {
+          "to": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "const": "card"},
+          "title": {"type": "string"},
+          "children": {"type": "array"}
+        }
+      }
+    }
+  ]
+}

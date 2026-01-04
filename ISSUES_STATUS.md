@@ -194,9 +194,15 @@
 - ✅ Capability: add_contact (CRUD Logic)
 - ✅ Integration Tests (Passed)
 
-## Next Recommended Issue
-
-**Issue #38: Plugin-Search (Plugin Discovery)**
+### ✅ Issue #38: WhatsApp Bridge
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Integration with external messaging.
+**Deliverables**:
+- ✅ Plugin Manifest & Structure
+- ✅ Capability: get_threads (List View)
+- ✅ Capability: send_message (Mock Logic)
+- ✅ Integration Tests (Passed)
 
 ---
 *Last Updated: 2025-01-04*
