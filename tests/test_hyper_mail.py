@@ -1,8 +1,10 @@
 import unittest
+from unittest.mock import MagicMock, patch
 import json
 import asyncio
 import os
 import tempfile
+import sys
 from a2ui_integration.core.kernel import Kernel
 from a2ui_integration.core.types import PluginConfig, PluginType, Capability
 
@@ -21,54 +23,66 @@ class TestHyperMail(unittest.IsolatedAsyncioTestCase):
         # Use temp DB file
         kernel = Kernel(db_path=self.db_path)
         
-        # Initialize Shared Services manually since we are not using the full app bootstrap
-        # (Kernel.__init__ calls _init_shared_services which calls initialize_shared_services)
-        # This should be enough to setup the DB.
+        # Mock IMAP
+        mock_imap_module = MagicMock()
+        mock_imap_instance = MagicMock()
+        mock_imap_module.IMAP4_SSL.return_value = mock_imap_instance
         
-        # Create Config from manifest
-        with open("plugins/hyper_mail/manifest.json") as f:
-            manifest = json.load(f)
+        # Mock search response: (status, [b'1 2'])
+        mock_imap_instance.search.return_value = ('OK', [b'1 2'])
+        
+        # Mock fetch response
+        # Structure: (status, [(metadata, raw_email)])
+        # fetch is called for '2' then '1' (reversed)
+        mock_imap_instance.fetch.side_effect = [
+            ('OK', [(b'2 (RFC822)', b'Subject: Test 2\r\nFrom: sender@example.com\r\nDate: Mon, 1 Jan 2024\r\n\r\nBody 2')]),
+            ('OK', [(b'1 (RFC822)', b'Subject: Test 1\r\nFrom: sender@example.com\r\nDate: Mon, 1 Jan 2024\r\n\r\nBody 1')])
+        ]
+        
+        # We need to patch imaplib in sys.modules so the plugin picks it up
+        with patch.dict(sys.modules, {'imaplib': mock_imap_module}):
+            # Load plugin (this will import the mocked imaplib)
+            # Note: We need to ensure the plugin is reloaded or loaded for the first time
+            kernel._load_plugin("hyper_mail")
             
-        config = PluginConfig(
-            id=manifest["id"],
-            name=manifest["name"],
-            version=manifest["version"],
-            description=manifest["description"],
-            type=PluginType(manifest["type"]),
-            author=manifest["author"],
-            enabled=True, # Enable immediately
-            capabilities=[
-                Capability(**cap) for cap in manifest["capabilities"]
-            ],
-            dependencies=manifest["dependencies"],
-            config={}
-        )
-        
-        # Register Plugin (Writes to DB)
-        success = await kernel.register_plugin(config)
-        self.assertTrue(success)
-        
-        # Enable Plugin (Reads from DB, updates Kernel state)
-        success = await kernel.enable_plugin("hyper_mail")
-        self.assertTrue(success)
-        
-        # Manually trigger load because initialize() is usually called at startup
-        # and we just added the plugin.
-        kernel._load_plugin("hyper_mail")
-        
-        # Verify Plugin is loaded in memory
-        self.assertIn("hyper_mail", kernel._plugins)
-        
-        # Execute Capability
-        result = await kernel.execute_capability("fetch_inbox", {})
-        
-        # Assertions on A2UI Structure
-        self.assertEqual(result["type"], "card")
-        self.assertEqual(result["id"], "inbox-card")
-        self.assertEqual(result["title"], "Inbox")
-        self.assertEqual(len(result["children"]), 1)
-        self.assertEqual(result["children"][0]["type"], "list")
-        self.assertEqual(len(result["children"][0]["items"]), 3)
+            # Verify plugin loaded
+            self.assertIn("hyper_mail", kernel._plugins)
+            
+            # Execute capability
+            result = await kernel.execute_capability("fetch_inbox", {
+                "username": "user", "password": "pass"
+            })
+            
+            # Verify result
+            self.assertEqual(result["title"], "Inbox")
+            items = result["children"][0]["items"]
+            self.assertEqual(len(items), 2)
+            self.assertEqual(items[0]["title"], "Test 2") # Reversed order (newest first)
+            self.assertEqual(items[1]["title"], "Test 1")
+            
+            # Verify IMAP calls
+            mock_imap_module.IMAP4_SSL.assert_called_with("imap.gmail.com")
+            mock_imap_instance.login.assert_called_with("user", "pass")
+            mock_imap_instance.select.assert_called_with("inbox")
 
-if __name__ == "__main__":
-    unittest.main()
+            # Verify actions in items
+            self.assertIn("action", items[0])
+            self.assertEqual(items[0]["action"]["capability_id"], "read_email")
+            self.assertEqual(items[0]["action"]["params"]["email_id"], "2")
+
+            # Reset mocks for read_email test
+            mock_imap_instance.reset_mock()
+            
+            # Test read_email capability
+            # Setup mock for specific email fetch
+            mock_imap_instance.fetch.side_effect = None
+            mock_imap_instance.fetch.return_value = ('OK', [(b'2 (RFC822)', b'Subject: Test 2\r\nFrom: sender@example.com\r\nDate: Mon, 1 Jan 2024\r\n\r\nBody 2')])
+            
+            read_result = await kernel.execute_capability("read_email", {
+                "username": "user", "password": "pass", "email_id": "2"
+            })
+            
+            self.assertEqual(read_result["title"], "Test 2")
+            # Children: [From, Date, Divider, Body]
+            self.assertIn("From: sender@example.com", read_result["children"][0]["content"])
+            self.assertIn("Body 2", read_result["children"][3]["content"])

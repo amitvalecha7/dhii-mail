@@ -18,6 +18,27 @@
       },
       "side_effects": false,
       "requires_auth": true
+    },
+    {
+      "id": "read_email",
+      "domain": "email",
+      "name": "Read Email",
+      "description": "Fetches the content of a specific email",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "email_id": {
+            "type": "string"
+          }
+        },
+        "required": ["email_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "description": "A2UI Component Graph displaying email content"
+      },
+      "side_effects": false,
+      "requires_auth": true
     }
   ],
   "dependencies": []

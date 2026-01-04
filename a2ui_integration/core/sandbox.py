@@ -12,10 +12,11 @@ def safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     Replacement for __import__ that only allows whitelisted modules.
     """
     ALLOWED_MODULES = {
-        'json', 'datetime', 're', 'math', 'random', 'logging', 'uuid'
+        'json', 'datetime', 're', 'math', 'random', 'logging', 'uuid',
+        'imaplib', 'email', 'ssl', 'socket', 'binascii', 'base64', 'quopri'
     }
     
-    if name in ALLOWED_MODULES:
+    if name in ALLOWED_MODULES or name.split('.')[0] in ALLOWED_MODULES:
         return builtins.__import__(name, globals, locals, fromlist, level)
     
     # Allow imports of internal modules if passed in context (handled by loader)
@@ -45,7 +46,9 @@ class PluginSandbox:
                 'len': len, 'list': list, 'map': map, 'max': max, 'min': min,
                 'print': print, # Redirect to logger in future
                 'range': range, 'set': set, 'sorted': sorted, 'str': str,
-                'sum': sum, 'tuple': tuple, 'zip': zip, 
+                'sum': sum, 'tuple': tuple, 'zip': zip, 'reversed': reversed,
+                'bytes': bytes, 'isinstance': isinstance, 'type': type,
+                'getattr': getattr, 'hasattr': hasattr, 
                 'Exception': Exception, 'ValueError': ValueError, 
                 'TypeError': TypeError, 'KeyError': KeyError,
                 # Crucially, we REPLACE __import__

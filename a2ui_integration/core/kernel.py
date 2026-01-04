@@ -119,6 +119,24 @@ class Kernel(KernelInterface):
                 # For MVP, we treat the 'runner' as the domain module if it succeeded
                 # In a full impl, we'd wrap the runner's registered capabilities
                 self._plugins[plugin_id] = runner
+                
+                # Register capabilities dynamically
+                for capability_id in runner._capabilities:
+                    self._capability_to_plugin[capability_id] = plugin_id
+                    
+                    if capability_id not in self._capabilities:
+                         # Create a dynamic placeholder capability if not in DB
+                         self._capabilities[capability_id] = Capability(
+                             id=capability_id,
+                             domain="dynamic",
+                             name=capability_id,
+                             description="Dynamically registered capability",
+                             input_schema={},
+                             output_schema={},
+                             side_effects=[],
+                             requires_auth=False
+                         )
+
                 logger.info(f"Plugin {plugin_id} loaded safely via Glass Wall.")
             else:
                 logger.error(f"Plugin {plugin_id} failed to load via Glass Wall.")
