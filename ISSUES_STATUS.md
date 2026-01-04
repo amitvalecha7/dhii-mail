@@ -140,9 +140,14 @@
 **Date**: 2025-01-04
 **Description**: Refactored Dockerfiles for Registry, Gateway, and Mock Server to use multi-stage builds and non-root users for security and optimization.
 
+### ✅ Issue #62: Infrastructure: Kubernetes Manifests
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Created Kubernetes manifests (`k8s/`) for API Gateway, Plugin Registry, Mock Orchestrator, Postgres, and Redis.
+
 ## Next Recommended Issue
 
-**Issue #62: Infrastructure: Kubernetes Manifests** - Create K8s deployment manifests for the microservices.
+**Issue #63: Documentation: Architecture Overview** - Consolidate architectural decisions and component diagrams into a central document.
 
 ---
 *Last Updated: 2025-01-04*
