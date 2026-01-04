@@ -453,14 +453,15 @@ class EmailManager:
             logger.error(f"Error getting email accounts: {e}")
             return []
     
-    def send_email(self, message: EmailMessage, account_id: int, sender: Optional[str] = None) -> bool:
+    def send_email(self, message: EmailMessage, account_id: int, sender: Optional[str] = None, user_id: Optional[int] = None) -> bool:
         """Send an email using SMTP (legacy method) - use send_email_with_retry for better reliability"""
-        result = self.send_email_with_retry(message, account_id, sender)
+        result = self.send_email_with_retry(message, account_id, sender, user_id=user_id)
         return result.success
     
     def send_email_with_retry(self, message: EmailMessage, account_id: int, 
                               sender: Optional[str] = None,
-                              retry_config: Optional[EmailRetryConfig] = None) -> EmailSendResult:
+                              retry_config: Optional[EmailRetryConfig] = None,
+                              user_id: Optional[int] = None) -> EmailSendResult:
         """Send an email with retry logic and comprehensive error handling"""
         if retry_config is None:
             retry_config = self.retry_config
@@ -539,7 +540,7 @@ class EmailManager:
                     server.send_message(msg)
                     
                     # Save sent message to database
-                    self._save_sent_message(message, account_id)
+                    self._save_sent_message(message, account_id, user_id)
                     
                     logger.info(f"Email sent successfully to {message.recipient} on attempt {attempts}")
                     return EmailSendResult(True, f"Email sent successfully to {message.recipient}", 
@@ -601,7 +602,7 @@ class EmailManager:
         # If we get here, all retries failed
         return EmailSendResult(False, "All retry attempts failed", attempts, last_error, retry_config.max_retries)
     
-    def send_email_aggressive_retry(self, message: EmailMessage, account_id: int, sender: Optional[str] = None) -> EmailSendResult:
+    def send_email_aggressive_retry(self, message: EmailMessage, account_id: int, sender: Optional[str] = None, user_id: Optional[int] = None) -> EmailSendResult:
         """Send email with aggressive retry policy for critical emails"""
         aggressive_config = EmailRetryConfig(
             max_retries=5,
@@ -612,9 +613,9 @@ class EmailManager:
             retry_on_connection_error=True,
             retry_on_server_busy=True
         )
-        return self.send_email_with_retry(message, account_id, sender, aggressive_config)
+        return self.send_email_with_retry(message, account_id, sender, aggressive_config, user_id)
     
-    def send_email_quick_retry(self, message: EmailMessage, account_id: int, sender: Optional[str] = None) -> EmailSendResult:
+    def send_email_quick_retry(self, message: EmailMessage, account_id: int, sender: Optional[str] = None, user_id: Optional[int] = None) -> EmailSendResult:
         """Send email with quick retry policy for non-critical emails"""
         quick_config = EmailRetryConfig(
             max_retries=2,
@@ -625,7 +626,7 @@ class EmailManager:
             retry_on_connection_error=True,
             retry_on_server_busy=False
         )
-        return self.send_email_with_retry(message, account_id, sender, quick_config)
+        return self.send_email_with_retry(message, account_id, sender, quick_config, user_id)
     
     def get_email_sending_stats(self, account_id: int, days: int = 30) -> Dict[str, Any]:
         """Get email sending statistics for an account"""
@@ -682,7 +683,7 @@ class EmailManager:
             logger.error(f"Error getting email sending stats: {e}")
             return {'total_sent': 0, 'folder_stats': {}, 'recent_activity': [], 'period_days': days}
     
-    def _save_sent_message(self, message: EmailMessage, account_id: int):
+    def _save_sent_message(self, message: EmailMessage, account_id: int, user_id: Optional[int] = None):
         """Save sent message to database"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -694,7 +695,7 @@ class EmailManager:
                     html_body, date, is_sent, folder, attachments, headers, priority, labels
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                message.sender, account_id, message.message_id, message.subject,
+                user_id or message.sender, account_id, message.message_id, message.subject,
                 message.sender, message.recipient, message.body, message.html_body,
                 message.date, True, 'Sent', json.dumps(message.attachments),
                 json.dumps(message.headers), message.priority, json.dumps(message.labels)

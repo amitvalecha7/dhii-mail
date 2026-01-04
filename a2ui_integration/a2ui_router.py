@@ -639,7 +639,7 @@ def create_booking_success_ui(request: MeetingBookingRequest, meeting_data: Dict
                 "contents": []
             }
         }
-    }
+    ]
 
     return json.dumps(success_components)
 

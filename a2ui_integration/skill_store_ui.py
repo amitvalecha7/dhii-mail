@@ -155,7 +155,110 @@ def create_kernel_dashboard_ui(dashboard_data: Dict[str, Any]) -> List[Dict[str,
                                 "style": {"fontSize": "18px", "fontWeight": "600", "color": "#1f2937", "marginBottom": "12px"}
                             }
                         }
+                    },
+                    {
+                        "id": "plugins-list",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": [f"plugin-item-{i}" for i in range(len(dashboard_data["plugins"]))]
+                                }
+                            }
+                        }
                     }
+                ] + [
+                    # Generate individual plugin items using adjacency list pattern
+                    {
+                        "id": f"plugin-item-{i}",
+                        "component": {
+                            "Card": {
+                                "child": f"plugin-content-{i}",
+                                "style": {
+                                    "padding": "12px",
+                                    "margin": "4px 0",
+                                    "backgroundColor": "#ffffff",
+                                    "border": "1px solid #e5e7eb",
+                                    "borderRadius": "8px"
+                                }
+                            }
+                        }
+                    }
+                    for i in range(len(dashboard_data["plugins"]))
+                ] + [
+                    # Generate plugin content components
+                    {
+                        "id": f"plugin-content-{i}",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": [f"plugin-name-{i}", f"plugin-desc-{i}", f"plugin-info-{i}"]
+                                }
+                            }
+                        }
+                    }
+                    for i in range(len(dashboard_data["plugins"]))
+                ] + [
+                    # Generate plugin text components
+                    {
+                        "id": f"plugin-name-{i}",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": plugin["name"]},
+                                "style": {"fontSize": "14px", "fontWeight": "600", "color": "#1f2937"}
+                            }
+                        }
+                    }
+                    for i, plugin in enumerate(dashboard_data["plugins"])
+                ] + [
+                    {
+                        "id": f"plugin-desc-{i}",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": plugin["description"]},
+                                "style": {"fontSize": "12px", "color": "#6b7280", "marginTop": "2px"}
+                            }
+                        }
+                    }
+                    for i, plugin in enumerate(dashboard_data["plugins"])
+                ] + [
+                    {
+                        "id": f"plugin-info-{i}",
+                        "component": {
+                            "Row": {
+                                "children": {
+                                    "explicitList": [f"plugin-type-{i}", f"plugin-status-{i}"]
+                                }
+                            }
+                        }
+                    }
+                    for i in range(len(dashboard_data["plugins"]))
+                ] + [
+                    # Generate plugin type and status components
+                    {
+                        "id": f"plugin-type-{i}",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"Type: {plugin['type']}"},
+                                "style": {"fontSize": "10px", "color": "#8b5cf6", "backgroundColor": "#f3e8ff", "padding": "2px 6px", "borderRadius": "4px"}
+                            }
+                        }
+                    }
+                    for i, plugin in enumerate(dashboard_data["plugins"])
+                ] + [
+                    {
+                        "id": f"plugin-status-{i}",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": "●" if plugin["enabled"] else "○"},
+                                "style": {
+                                    "fontSize": "12px",
+                                    "color": "#10b981" if plugin["enabled"] else "#6b7280",
+                                    "marginLeft": "8px"
+                                }
+                            }
+                        }
+                    }
+                    for i, plugin in enumerate(dashboard_data["plugins"])
                 ]
             }
         },

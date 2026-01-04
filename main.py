@@ -2084,7 +2084,7 @@ async def send_email(
                 raise ValidationError("No email account configured")
         
         # Send email
-        success = email_manager.send_email(message, account_id)
+        success = email_manager.send_email(message, account_id, user_id=user_id)
         
         if success:
             return {
@@ -2339,7 +2339,7 @@ async def send_email(
         account = next((acc for acc in accounts if acc.is_active), accounts[0])
         
         # Send the email
-        message_id = email_manager.send_email(user_id, account.id, email_message)
+        message_id = email_manager.send_email(email_message, account.id, user_id=user_id)
         
         if message_id:
             return {

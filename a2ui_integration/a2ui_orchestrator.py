@@ -79,12 +79,21 @@ class A2UIOrchestrator:
         self.appshell.update_pane_content("details_pane", details_content)
         
         # Recreate AppShell with updated content
-        ui_result = self.appshell.create_layout_component("three_pane")
+        appshell_layout = self.appshell.create_layout_component("three_pane")
         
-        # Add state machine info to the result
-        ui_result["state_info"] = self.state_machine.get_state_info()
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
+            "layout": appshell_layout,
+            "navigation": self._get_navigation_bar(),
+            "chat_component": self._get_chat_component()
+        }
         
-        return ui_result
+        # Return unified format
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
+        }
     
     def _render_dashboard(self) -> Dict[str, Any]:
         """Render main dashboard with A2UI components"""
@@ -130,11 +139,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "dashboard",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_email_inbox(self) -> Dict[str, Any]:
@@ -187,11 +202,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "email_inbox",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_email_compose(self) -> Dict[str, Any]:
@@ -222,11 +243,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "email_compose",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_email_detail(self) -> Dict[str, Any]:
@@ -274,11 +301,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "email_detail",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_calendar(self) -> Dict[str, Any]:
@@ -315,11 +348,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "calendar",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_meeting_list(self) -> Dict[str, Any]:
@@ -353,11 +392,17 @@ class A2UIOrchestrator:
             components=[actions, meeting_table]
         )
         
-        return {
-            "ui_type": "meeting_list",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_meeting_detail(self) -> Dict[str, Any]:
@@ -421,11 +466,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "meeting_detail",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_meeting_book(self) -> Dict[str, Any]:
@@ -465,11 +516,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "meeting_book",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_task_board(self) -> Dict[str, Any]:
@@ -514,11 +571,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "task_board",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_analytics(self) -> Dict[str, Any]:
@@ -565,11 +628,17 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "analytics",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _render_settings(self) -> Dict[str, Any]:
@@ -606,19 +675,31 @@ class A2UIOrchestrator:
             ]
         )
         
-        return {
-            "ui_type": "settings",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": layout,
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
+        }
     
     def _render_chat(self) -> Dict[str, Any]:
         """Render chat interface as A2UI component"""
-        return {
-            "ui_type": "chat",
+        # Create unified AppShell component
+        component = {
+            "type": "appshell",
             "layout": self._get_chat_component(),
             "navigation": self._get_navigation_bar()
+        }
+        
+        return {
+            "component": component,
+            "state_info": self.state_machine.get_state_info()
         }
     
     def _get_navigation_bar(self) -> Dict[str, Any]:

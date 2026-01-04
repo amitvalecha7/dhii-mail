@@ -11,8 +11,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any, List
 import json
-import jwt
-from datetime import datetime, timedelta
 import bcrypt
 from uuid import uuid4
 
@@ -20,6 +18,7 @@ from uuid import uuid4
 from security_manager import SecurityManager
 from a2ui_card_implementation import A2UICardRenderer
 from config import settings
+from auth import get_auth  # Import unified AuthManager
 
 app = FastAPI(title="dhii Mail Auth API", version="1.0.0")
 
@@ -35,12 +34,7 @@ app.add_middleware(
 # Initialize components
 security_manager = SecurityManager()
 card_renderer = A2UICardRenderer()
-
-# SECURITY: JWT configuration loaded from environment-driven settings
-# This prevents hard-coded secrets and allows secure configuration per environment
-SECRET_KEY = settings.jwt_secret_key  # From environment: JWT_SECRET_KEY - validated secure
-ALGORITHM = "HS256"  # Standard JWT algorithm
-ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Token expiration time
+auth_manager = get_auth()  # Use unified AuthManager
 
 # Mock user database (replace with real database)
 users_db = {}
@@ -65,14 +59,10 @@ class AuthResponse(BaseModel):
     cards: Optional[List[Dict[str, Any]]] = None
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    """Create access token using unified AuthManager"""
+    # Extract user_id from data or use a default
+    user_id = data.get("sub", "unknown_user")
+    return auth_manager.create_token(user_id, "access")
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -624,11 +614,7 @@ async def api_signup(user_data: UserSignup):
         }
         
         # Create access token
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user_data.email, "user_id": user_id},
-            expires_delta=access_token_expires
-        )
+        access_token = create_access_token({"sub": user_data.email, "user_id": user_id})
         
         return AuthResponse(
             success=True,
@@ -1005,11 +991,7 @@ async def api_login(user_data: UserLogin):
             )
         
         # Create access token
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user_data.email, "user_id": user["id"]},
-            expires_delta=access_token_expires
-        )
+        access_token = create_access_token({"sub": user_data.email, "user_id": user["id"]})
         
         return AuthResponse(
             success=True,
@@ -1035,13 +1017,16 @@ async def get_onboarding_page(token: str):
     try:
         # Validate token and get user info
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email = payload.get("sub")
+            user_data = auth_manager.verify_token(token, "access")
+            if not user_data:
+                raise HTTPException(status_code=401, detail="Invalid token")
+            
+            email = user_data.get("email", user_data.get("sub"))
             user = users_db.get(email)
             
             if not user:
                 raise HTTPException(status_code=401, detail="Invalid token")
-        except jwt.PyJWTError:
+        except Exception:
             raise HTTPException(status_code=401, detail="Invalid token")
         
         # Generate onboarding cards
