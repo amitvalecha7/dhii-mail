@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Database schema issues with missing columns in plugins table
 - Proper initialization of shared services for plugin architecture
+- AuthManager token creation failure due to foreign key constraint violations
+- AuthManager unification between main.py and auth.py to ensure single instance usage
+- User existence validation in auth.py create_token method to prevent invalid token creation
 
 ## [Previous Versions]
 
