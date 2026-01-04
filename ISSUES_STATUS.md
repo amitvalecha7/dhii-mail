@@ -120,9 +120,14 @@
 **Date**: 2025-01-04
 **Description**: Set up `docker-compose.yml`, `.devcontainer`, and a mock Orchestrator server for frontend development.
 
+### ✅ Issue #58: Infrastructure: CI/CD Pipeline
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Configured GitHub Actions workflow (`.github/workflows/ci.yml`) for Python linting/testing, Frontend build, and Docker verification.
+
 ## Next Recommended Issue
 
-**Issue #58: Infrastructure: CI/CD Pipeline** - Configure GitHub Actions for linting, testing, and auto-publishing.
+**Issue #59: Infrastructure: Plugin Registry** - Create a simple registry service to host and serve plugin manifests.
 
 ---
 *Last Updated: 2025-01-04*
