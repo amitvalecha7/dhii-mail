@@ -48,6 +48,10 @@ from marketing_manager import MarketingManager, marketing_manager, MarketingCamp
 # Import security manager
 from security_manager import security_manager, SecurityEvent
 
+# Import kernel and shared services for plugin architecture
+from a2ui_integration.core.kernel import Kernel
+from a2ui_integration.core.shared_services import SharedServices
+
 # Import middleware
 from backend.core.middleware import setup_middleware
 
@@ -57,6 +61,16 @@ from error_handler import ErrorHandler, AppError, AuthenticationError, Authoriza
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize kernel for plugin architecture
+kernel = Kernel(
+    db_path="kernel.db",
+    secret_key=os.getenv("KERNEL_SECRET_KEY", "kernel-secret-key-for-development")
+)
+
+# Get shared services from kernel
+shared_services = kernel.shared_services
+logger.info("Kernel and shared services initialized successfully")
 
 # Initialize database manager
 db_manager = DatabaseManager()
@@ -570,6 +584,106 @@ async def form_authenticate(request: FormAuthRequest):
             response="Sorry, I encountered an error. Please try again.",
             requires_input=True,
             session_id=request.session_id
+        )
+
+# Kernel Management Endpoints
+class PluginInstallRequest(BaseModel):
+    plugin_id: str
+    plugin_type: str = "email"
+    config: Optional[Dict[str, Any]] = None
+
+@app.get("/kernel/plugins")
+async def list_kernel_plugins(current_user: dict = Depends(get_current_user)):
+    """List all plugins managed by the kernel."""
+    try:
+        plugins = await kernel.list_plugins()
+        return {
+            "plugins": [
+                {
+                    "id": plugin.id,
+                    "name": plugin.name,
+                    "version": plugin.version,
+                    "description": plugin.description,
+                    "type": plugin.type.value,
+                    "status": plugin.status.value,
+                    "installed_at": plugin.installed_at.isoformat(),
+                    "usage_count": plugin.usage_count,
+                    "error_count": plugin.error_count
+                }
+                for plugin in plugins
+            ]
+        }
+    except Exception as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "list_kernel_plugins"})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
+        )
+
+@app.post("/kernel/plugins/install")
+async def install_kernel_plugin(
+    request: PluginInstallRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Install a plugin through the kernel."""
+    try:
+        # Create plugin config
+        from a2ui_integration.core.types import PluginConfig, PluginType
+        
+        plugin_config = PluginConfig(
+            id=request.plugin_id,
+            name=request.plugin_id.replace("_", " ").title(),
+            version="1.0.0",
+            description=f"Plugin for {request.plugin_type}",
+            type=PluginType(request.plugin_type),
+            config=request.config or {}
+        )
+        
+        success = await kernel.register_plugin(plugin_config)
+        
+        if success:
+            return {
+                "message": f"Plugin {request.plugin_id} installed successfully",
+                "plugin_id": request.plugin_id
+            }
+        else:
+            raise ValidationError(f"Failed to install plugin {request.plugin_id}")
+            
+    except ValidationError as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "install_kernel_plugin", "plugin_id": request.plugin_id})
+        return JSONResponse(
+            status_code=400,
+            content=error.to_dict()
+        )
+    except Exception as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "install_kernel_plugin", "plugin_id": request.plugin_id})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
+        )
+
+@app.get("/kernel/status")
+async def get_kernel_status():
+    """Get kernel and shared services status."""
+    try:
+        return {
+            "kernel": {
+                "initialized": kernel.shared_services._initialized,
+                "plugins_count": len(await kernel.list_plugins()),
+                "database_path": "kernel.db",
+                "shared_services": {
+                    "database": "initialized",
+                    "auth": "initialized", 
+                    "event_bus": "initialized"
+                }
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        error = ErrorHandler.handle_error(e, {"endpoint": "get_kernel_status"})
+        return JSONResponse(
+            status_code=500,
+            content=error.to_dict()
         )
 
 # A2UI Chat-based Authentication with Login Card Integration

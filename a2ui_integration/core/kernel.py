@@ -9,101 +9,81 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Type
 from pathlib import Path
+import asyncio
 
 from .types import (
     KernelInterface, DomainModule, PluginConfig, PluginInfo, PluginType, 
     PluginStatus, Capability, A2UIComponent, AdjacencyOperation
 )
-from ..plugin_manager import PluginManager
+from .shared_services import SharedServices, get_shared_services, EventType, Event
 
 logger = logging.getLogger(__name__)
 
 
 class Kernel(KernelInterface):
-    """Core kernel that manages plugins and coordinates capabilities"""
+    """Core kernel that manages plugins and coordinates capabilities using shared services"""
     
-    def __init__(self, db_path: str = "kernel.db"):
+    def __init__(self, db_path: str = "kernel.db", secret_key: str = "kernel-secret-key"):
         self.db_path = db_path
-        self.plugin_manager = PluginManager()
+        self.secret_key = secret_key
         self._plugins: Dict[str, DomainModule] = {}
         self._plugin_configs: Dict[str, PluginConfig] = {}
         self._capabilities: Dict[str, Capability] = {}
         self._capability_to_plugin: Dict[str, str] = {}
+        self._initialized = False
         
-        # Initialize database
-        self._init_database()
-        
-        # Load existing plugins
-        self._load_plugins()
+        # Initialize shared services
+        self._init_shared_services()
     
-    def _init_database(self):
-        """Initialize the kernel database"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Plugins table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS plugins (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                version TEXT NOT NULL,
-                description TEXT,
-                type TEXT NOT NULL,
-                status TEXT NOT NULL,
-                config TEXT,
-                installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_updated TIMESTAMP,
-                usage_count INTEGER DEFAULT 0,
-                error_count INTEGER DEFAULT 0
-            )
-        ''')
-        
-        # Capabilities table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS capabilities (
-                id TEXT PRIMARY KEY,
-                plugin_id TEXT NOT NULL,
-                domain TEXT NOT NULL,
-                name TEXT NOT NULL,
-                description TEXT,
-                input_schema TEXT,
-                output_schema TEXT,
-                side_effects TEXT,
-                requires_auth BOOLEAN DEFAULT FALSE,
-                FOREIGN KEY (plugin_id) REFERENCES plugins (id)
-            )
-        ''')
-        
-        # Plugin dependencies table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS plugin_dependencies (
-                plugin_id TEXT NOT NULL,
-                dependency_id TEXT NOT NULL,
-                PRIMARY KEY (plugin_id, dependency_id),
-                FOREIGN KEY (plugin_id) REFERENCES plugins (id),
-                FOREIGN KEY (dependency_id) REFERENCES plugins (id)
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+    def _init_shared_services(self):
+        """Initialize shared services for the kernel"""
+        from .shared_services import initialize_shared_services
+        initialize_shared_services(self.db_path, self.secret_key)
+        self.shared_services = get_shared_services()
+        self._initialized = True
+        logger.info("Kernel shared services initialized")
+
+    async def initialize(self):
+        """Initialize kernel and load existing plugins"""
+        try:
+            logger.info("Initializing kernel...")
+            
+            # Load existing plugins
+            await self._load_plugins_async()
+            
+            logger.info("Kernel initialization completed")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize kernel: {e}")
+            raise
     
     def _load_plugins(self):
         """Load plugins from database"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM plugins WHERE status = ?', (PluginStatus.ENABLED.value,))
-        plugins = cursor.fetchall()
-        
-        for plugin_data in plugins:
-            plugin_id = plugin_data[0]
-            try:
-                self._load_plugin(plugin_id)
-            except Exception as e:
-                logger.error(f"Failed to load plugin {plugin_id}: {e}")
-        
-        conn.close()
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT * FROM plugins WHERE status = ?', (PluginStatus.ENABLED.value,))
+            plugins = cursor.fetchall()
+            
+            for plugin_data in plugins:
+                plugin_id = plugin_data[0]
+                try:
+                    self._load_plugin(plugin_id)
+                except Exception as e:
+                    logger.error(f"Failed to load plugin {plugin_id}: {e}")
+            
+            conn.close()
+        except sqlite3.OperationalError as e:
+            # Database tables don't exist yet, this is OK during initialization
+            logger.info("Plugin tables not found, skipping plugin load during initialization")
+        except Exception as e:
+            logger.error(f"Error loading plugins: {e}")
+
+    async def _load_plugins_async(self):
+        """Async version of load plugins"""
+        # For now, just call the sync version
+        self._load_plugins()
     
     def _load_plugin(self, plugin_id: str):
         """Load a specific plugin"""
@@ -122,22 +102,24 @@ class Kernel(KernelInterface):
             return False
     
     async def register_plugin(self, plugin_config: PluginConfig) -> bool:
-        """Register a new plugin"""
+        """Register a new plugin using shared services"""
         try:
-            # Store in database
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            # Use shared database service
+            db = self.shared_services.database
             
-            cursor.execute('''
+            # Store plugin in database
+            db.execute_update('''
                 INSERT OR REPLACE INTO plugins 
-                (id, name, version, description, type, status, config, installed_at, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, name, version, description, type, author, enabled, status, config, installed_at, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 plugin_config.id,
                 plugin_config.name,
                 plugin_config.version,
                 plugin_config.description,
                 plugin_config.type.value,
+                plugin_config.author,
+                plugin_config.enabled,
                 PluginStatus.INSTALLED.value,
                 json.dumps(plugin_config.config),
                 datetime.now().isoformat(),
@@ -146,7 +128,7 @@ class Kernel(KernelInterface):
             
             # Store capabilities
             for capability in plugin_config.capabilities:
-                cursor.execute('''
+                db.execute_update('''
                     INSERT OR REPLACE INTO capabilities 
                     (id, plugin_id, domain, name, description, input_schema, output_schema, side_effects, requires_auth)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -164,16 +146,22 @@ class Kernel(KernelInterface):
             
             # Store dependencies
             for dependency in plugin_config.dependencies:
-                cursor.execute('''
+                db.execute_update('''
                     INSERT OR REPLACE INTO plugin_dependencies (plugin_id, dependency_id)
                     VALUES (?, ?)
                 ''', (plugin_config.id, dependency))
             
-            conn.commit()
-            conn.close()
-            
             # Store in memory
             self._plugin_configs[plugin_config.id] = plugin_config
+            
+            # Publish event
+            await self.shared_services.event_bus.publish(Event(
+                id=f"plugin_registered_{plugin_config.id}_{datetime.now().isoformat()}",
+                type=EventType.PLUGIN_REGISTERED,
+                source="kernel",
+                timestamp=datetime.now(),
+                data={"plugin_id": plugin_config.id, "plugin_name": plugin_config.name}
+            ))
             
             logger.info(f"Plugin {plugin_config.id} registered successfully")
             return True
@@ -183,30 +171,34 @@ class Kernel(KernelInterface):
             return False
     
     async def enable_plugin(self, plugin_id: str) -> bool:
-        """Enable a plugin"""
+        """Enable a plugin using shared services"""
         if plugin_id not in self._plugin_configs:
             logger.error(f"Plugin {plugin_id} not found")
             return False
         
         try:
-            # Update database
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+            # Update database using shared services
+            db = self.shared_services.database
+            db.execute_update('''
                 UPDATE plugins 
                 SET status = ?, last_updated = ?
                 WHERE id = ?
             ''', (PluginStatus.ENABLED.value, datetime.now().isoformat(), plugin_id))
-            
-            conn.commit()
-            conn.close()
             
             # Load capabilities
             plugin_config = self._plugin_configs[plugin_id]
             for capability in plugin_config.capabilities:
                 self._capabilities[capability.id] = capability
                 self._capability_to_plugin[capability.id] = plugin_id
+            
+            # Publish event
+            await self.shared_services.event_bus.publish(Event(
+                id=f"plugin_enabled_{plugin_id}_{datetime.now().isoformat()}",
+                type=EventType.PLUGIN_ENABLED,
+                source="kernel",
+                timestamp=datetime.now(),
+                data={"plugin_id": plugin_id, "plugin_name": plugin_config.name}
+            ))
             
             logger.info(f"Plugin {plugin_id} enabled successfully")
             return True
@@ -216,20 +208,15 @@ class Kernel(KernelInterface):
             return False
     
     async def disable_plugin(self, plugin_id: str) -> bool:
-        """Disable a plugin"""
+        """Disable a plugin using shared services"""
         try:
-            # Update database
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+            # Update database using shared services
+            db = self.shared_services.database
+            db.execute_update('''
                 UPDATE plugins 
                 SET status = ?, last_updated = ?
                 WHERE id = ?
             ''', (PluginStatus.DISABLED.value, datetime.now().isoformat(), plugin_id))
-            
-            conn.commit()
-            conn.close()
             
             # Remove capabilities
             plugin_config = self._plugin_configs.get(plugin_id)
@@ -239,6 +226,15 @@ class Kernel(KernelInterface):
                         del self._capabilities[capability.id]
                     if capability.id in self._capability_to_plugin:
                         del self._capability_to_plugin[capability.id]
+                
+                # Publish event
+                await self.shared_services.event_bus.publish(Event(
+                    id=f"plugin_disabled_{plugin_id}_{datetime.now().isoformat()}",
+                    type=EventType.PLUGIN_DISABLED,
+                    source="kernel",
+                    timestamp=datetime.now(),
+                    data={"plugin_id": plugin_id, "plugin_name": plugin_config.name}
+                ))
             
             logger.info(f"Plugin {plugin_id} disabled successfully")
             return True
@@ -248,68 +244,72 @@ class Kernel(KernelInterface):
             return False
     
     async def get_plugin(self, plugin_id: str) -> Optional[PluginInfo]:
-        """Get plugin information"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM plugins WHERE id = ?', (plugin_id,))
-        plugin_data = cursor.fetchone()
-        
-        if not plugin_data:
-            conn.close()
+        """Get plugin information using shared services"""
+        try:
+            # Use shared database service
+            db = self.shared_services.database
+            results = db.execute_query('SELECT * FROM plugins WHERE id = ?', (plugin_id,))
+            
+            if not results:
+                return None
+            
+            plugin_data = results[0]
+            plugin_info = PluginInfo(
+                id=plugin_data['id'],
+                name=plugin_data['name'],
+                version=plugin_data['version'],
+                description=plugin_data['description'],
+                type=PluginType(plugin_data['type']),
+                status=PluginStatus(plugin_data['status']),
+                installed_at=datetime.fromisoformat(plugin_data['installed_at']),
+                last_updated=datetime.fromisoformat(plugin_data['last_updated']) if plugin_data['last_updated'] else None,
+                usage_count=plugin_data['usage_count'],
+                error_count=plugin_data['error_count'],
+                config=json.loads(plugin_data['config']) if plugin_data['config'] else {}
+            )
+            
+            return plugin_info
+            
+        except Exception as e:
+            logger.error(f"Failed to get plugin {plugin_id}: {e}")
             return None
-        
-        plugin_info = PluginInfo(
-            id=plugin_data[0],
-            name=plugin_data[1],
-            version=plugin_data[2],
-            description=plugin_data[3],
-            type=PluginType(plugin_data[4]),
-            status=PluginStatus(plugin_data[5]),
-            installed_at=datetime.fromisoformat(plugin_data[7]),
-            last_updated=datetime.fromisoformat(plugin_data[8]) if plugin_data[8] else None,
-            usage_count=plugin_data[9],
-            error_count=plugin_data[10],
-            config=json.loads(plugin_data[6]) if plugin_data[6] else {}
-        )
-        
-        conn.close()
-        return plugin_info
     
     async def list_plugins(self, plugin_type: Optional[PluginType] = None) -> List[PluginInfo]:
-        """List all plugins or filter by type"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        if plugin_type:
-            cursor.execute('SELECT * FROM plugins WHERE type = ?', (plugin_type.value,))
-        else:
-            cursor.execute('SELECT * FROM plugins')
-        
-        plugins_data = cursor.fetchall()
-        plugins = []
-        
-        for plugin_data in plugins_data:
-            plugin_info = PluginInfo(
-                id=plugin_data[0],
-                name=plugin_data[1],
-                version=plugin_data[2],
-                description=plugin_data[3],
-                type=PluginType(plugin_data[4]),
-                status=PluginStatus(plugin_data[5]),
-                installed_at=datetime.fromisoformat(plugin_data[7]),
-                last_updated=datetime.fromisoformat(plugin_data[8]) if plugin_data[8] else None,
-                usage_count=plugin_data[9],
-                error_count=plugin_data[10],
-                config=json.loads(plugin_data[6]) if plugin_data[6] else {}
-            )
-            plugins.append(plugin_info)
-        
-        conn.close()
-        return plugins
+        """List all plugins or filter by type using shared services"""
+        try:
+            # Use shared database service
+            db = self.shared_services.database
+            
+            if plugin_type:
+                results = db.execute_query('SELECT * FROM plugins WHERE type = ?', (plugin_type.value,))
+            else:
+                results = db.execute_query('SELECT * FROM plugins')
+            
+            plugins = []
+            for plugin_data in results:
+                plugin_info = PluginInfo(
+                    id=plugin_data['id'],
+                    name=plugin_data['name'],
+                    version=plugin_data['version'],
+                    description=plugin_data['description'],
+                    type=PluginType(plugin_data['type']),
+                    status=PluginStatus(plugin_data['status']),
+                    installed_at=datetime.fromisoformat(plugin_data['installed_at']),
+                    last_updated=datetime.fromisoformat(plugin_data['last_updated']) if plugin_data['last_updated'] else None,
+                    usage_count=plugin_data['usage_count'],
+                    error_count=plugin_data['error_count'],
+                    config=json.loads(plugin_data['config']) if plugin_data['config'] else {}
+                )
+                plugins.append(plugin_info)
+            
+            return plugins
+            
+        except Exception as e:
+            logger.error(f"Failed to list plugins: {e}")
+            return []
     
     async def execute_capability(self, capability_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a capability from any plugin"""
+        """Execute a capability from any plugin using shared services"""
         if capability_id not in self._capabilities:
             raise ValueError(f"Capability {capability_id} not found")
         
@@ -325,24 +325,65 @@ class Kernel(KernelInterface):
         try:
             result = await plugin.execute_capability(capability_id, params)
             
-            # Update usage count
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute('UPDATE plugins SET usage_count = usage_count + 1 WHERE id = ?', (plugin_id,))
-            conn.commit()
-            conn.close()
+            # Update usage count using shared services
+            db = self.shared_services.database
+            db.execute_update('UPDATE plugins SET usage_count = usage_count + 1 WHERE id = ?', (plugin_id,))
+            
+            # Publish capability executed event
+            await self.shared_services.event_bus.publish(Event(
+                id=f"capability_executed_{capability_id}_{datetime.now().isoformat()}",
+                type=EventType.CAPABILITY_EXECUTED,
+                source=plugin_id,
+                timestamp=datetime.now(),
+                data={"capability_id": capability_id, "plugin_id": plugin_id, "params": params}
+            ))
             
             return result
             
         except Exception as e:
-            # Update error count
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute('UPDATE plugins SET error_count = error_count + 1 WHERE id = ?', (plugin_id,))
-            conn.commit()
-            conn.close()
+            # Update error count using shared services
+            db = self.shared_services.database
+            db.execute_update('UPDATE plugins SET error_count = error_count + 1 WHERE id = ?', (plugin_id,))
+            
+            # Publish plugin error event
+            await self.shared_services.event_bus.publish(Event(
+                id=f"plugin_error_{plugin_id}_{datetime.now().isoformat()}",
+                type=EventType.PLUGIN_ERROR,
+                source=plugin_id,
+                timestamp=datetime.now(),
+                data={"capability_id": capability_id, "error": str(e), "error_type": type(e).__name__}
+            ))
             
             raise e
+    
+    async def get_status(self) -> Dict[str, Any]:
+        """Get kernel status information"""
+        try:
+            plugins = await self.list_plugins()
+            enabled_plugins = [p for p in plugins if p.status == PluginStatus.ENABLED]
+            
+            return {
+                "status": "running" if self._initialized else "initializing",
+                "initialized": self._initialized,
+                "total_plugins": len(plugins),
+                "enabled_plugins": len(enabled_plugins),
+                "plugins_by_type": {
+                    plugin_type.value: len([p for p in plugins if p.type == plugin_type])
+                    for plugin_type in PluginType
+                },
+                "shared_services": {
+                    "database": self.shared_services.database is not None,
+                    "auth": self.shared_services.auth is not None,
+                    "event_bus": self.shared_services.event_bus is not None
+                }
+            }
+        except Exception as e:
+            logger.error(f"Failed to get kernel status: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "initialized": self._initialized
+            }
     
     async def search(self, query: str, domains: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Universal search across enabled plugins"""
