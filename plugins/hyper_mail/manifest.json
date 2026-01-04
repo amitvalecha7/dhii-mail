@@ -1,0 +1,24 @@
+{
+  "id": "hyper_mail",
+  "name": "Hyper-Mail",
+  "version": "0.1.0",
+  "description": "Next-gen email experience with A2UI",
+  "type": "email",
+  "author": "Dhii Team",
+  "capabilities": [
+    {
+      "id": "fetch_inbox",
+      "domain": "email",
+      "name": "Fetch Inbox",
+      "description": "Returns the main inbox view",
+      "input_schema": {},
+      "output_schema": {
+        "type": "object",
+        "description": "A2UI Component Graph"
+      },
+      "side_effects": false,
+      "requires_auth": true
+    }
+  ],
+  "dependencies": []
+}

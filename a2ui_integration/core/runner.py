@@ -1,5 +1,6 @@
 import logging
 import traceback
+import asyncio
 from typing import Dict, Any, Optional
 
 from .sandbox import PluginSandbox, SecurityViolation
@@ -18,6 +19,33 @@ class PluginRunner:
         self.kernel_api = kernel_api
         self.sandbox = PluginSandbox(plugin_id, kernel_api)
         self.is_active = False
+        self._capabilities = {} # Map capability_id -> function
+
+    def register_capability(self, capability_id: str, func):
+        """
+        Registers a python function as a capability handler.
+        """
+        logger.info(f"Runner: Registering capability {capability_id} for plugin {self.plugin_id}")
+        self._capabilities[capability_id] = func
+
+    async def execute_capability(self, capability_id: str, params: Dict[str, Any]) -> Any:
+        """
+        Executes a registered capability.
+        """
+        if capability_id not in self._capabilities:
+            raise ValueError(f"Capability {capability_id} not registered in plugin {self.plugin_id}")
+            
+        handler = self._capabilities[capability_id]
+        
+        try:
+            # Check if handler is async
+            if asyncio.iscoroutinefunction(handler):
+                return await handler(params)
+            else:
+                return handler(params)
+        except Exception as e:
+            logger.error(f"Runner: Error executing capability {capability_id}: {e}")
+            raise
 
     def load_and_register(self) -> bool:
         """

@@ -160,9 +160,22 @@
 **Date**: 2025-01-04
 **Description**: Implemented the sandboxed execution environment (Glass Wall) in `a2ui_integration/core/sandbox.py` and `runner.py`, enabling safe plugin execution with restricted globals.
 
+## Active Issues
+
+### 🔄 Issue #35: Hyper-Mail (Core Email Plugin)
+**Status**: IN PROGRESS 🔄
+**Date**: 2025-01-04
+**Description**: Building the Gmail/IMAP Integrator that uses A2UI to render Inbox.
+**Deliverables**:
+- ✅ Plugin Manifest & Structure
+- ✅ Capability Registration Logic
+- ✅ Integration Tests (Passed)
+- ⬜ IMAP Connection Logic
+- ⬜ A2UI Rendering Logic
+
 ## Next Recommended Issue
 
-**Issue #66: Feature: Plugin SDK** - Create the developer-facing SDK (`dhii_sdk`) that wraps the low-level Kernel API for building plugins easily.
+**Issue #36: Calendar Plugin** - Build the Calendar integration.
 
 ---
 *Last Updated: 2025-01-04*

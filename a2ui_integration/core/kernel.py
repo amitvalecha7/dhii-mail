@@ -111,6 +111,9 @@ class Kernel(KernelInterface):
             # 3. Create Runner
             runner = PluginRunner(plugin_id, source_code, {}, kernel_context)
             
+            # Inject register_capability into context so plugin can call kernel.register_capability(...)
+            kernel_context["register_capability"] = runner.register_capability
+            
             # 4. Load
             if runner.load_and_register():
                 # For MVP, we treat the 'runner' as the domain module if it succeeded
