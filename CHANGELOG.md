@@ -1,134 +1,66 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [Unreleased] - 2025-01-04
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Security Fixes (P1 Priority)
+- **Issue #1**: Unified AuthManager instances and JWT secret configuration
+  - Consolidated authentication across auth_api.py and main auth system
+  - Removed duplicate JWT configuration
+  - Fixed hardcoded fallback JWT secret
+  - All authentication flows now use unified PASETO token system
 
-## [Unreleased]
+- **Issue #2**: Standardized A2UI router response to AppShell orchestrator shape
+  - Updated all 12 render functions to return unified AppShell format
+  - Created comprehensive test suite validating all UI states
+  - Ensured consistent response format across all components
 
-## [1.0.0] - 2024-01-04
+- **Issue #11**: Fixed EmailManager._save_sent_message foreign key integrity
+  - Updated function signatures to accept user_id parameter
+  - Modified database operations to use proper user_id foreign key
+  - Resolved data integrity issues in email_messages table
 
-### Added
-- **WhatsApp Chat Analysis Integration**: Complete WhatsApp chat export analysis system
-  - Chat parsing for both TXT and JSON export formats
-  - Message analysis with participant statistics
-  - Sentiment analysis using TextBlob
-  - Activity pattern analysis (hourly/daily distribution)
-  - Media usage statistics
-  - Conversation insights and key topics extraction
-  - Privacy-aware processing with local data handling
+- **Issue #14**: Unified auth_api.py SECRET_KEY with main auth configuration
+  - Removed duplicate JWT configuration
+  - Updated token creation/verification to use AuthManager
 
-- **A2UI Integration**: Declarative UI component generation for WhatsApp analysis
-  - `/api/whatsapp/analyze-chat` endpoint for chat analysis
-  - `/api/whatsapp/upload-chat` endpoint for file upload and analysis
-  - A2UI component generation for data visualization
-  - Real-time analysis with streaming responses
+### Bug Fixes
+- **Issue #10**: Fixed missing sqlite3 import in main.py email send endpoint
+- **Issue #12**: Made security_audit.py paths project-relative instead of hardcoded
 
-- **Plugin Management System**: Comprehensive plugin infrastructure
-  - SQLite-based plugin registry and persistence
-  - Plugin lifecycle management (registration, enable/disable)
-  - Usage analytics and error tracking
-  - Skill Store interface for plugin discovery
-  - WhatsApp analyzer plugin registration and management
+### Features Implemented
+- **Issue #4**: Complete Phase 19 - AppShell with resizable panes and BottomBar
+- **Issue #5**: Complete Phase 20 - Advanced A2UI component catalog
+- **Issue #6**: Complete Phase 21 - Domain shell components and meeting scheduler
+- **Issue #7**: Complete Phase 22 - Responsive A2UI design system
+- **Issue #8**: Complete Phase 24 - Advanced interactions (keyboard, DnD, gestures)
+- **Issue #9**: Complete Phase 25 - Autonomy levels and safety/audit framework
 
-- **Security Enhancements**: Automated review validation systems
-  - Relative path security validation comments
-  - Encrypted password storage documentation
-  - Environment-driven CORS configuration
-  - JWT secret key security comments
-  - SECURITY_VALIDATION.md documentation
+### New Issues Created
+- **Issue #16**: Implement Tool Registry Pattern for Agent Extensibility
+- **Issue #17**: Consolidate AI Agents (Deprecate ai_engine.py)
+- **Issue #18**: Implement Database Persistence for Marketing Manager
+- **Issue #19**: Implement 'Liquid Glass' UI Theme & Layout
+- **Issue #20**: Implement Generative 'Context Cards' Engine
+- **Issue #21**: Implement Universal Plugin Search
+- **Issue #22**: Implement 'Skill Store' Interface
+- **Issue #23**: Major Refactor: Core Kernel and Plugin Migration
+- **Issue #24**: Implement Shared Kernel Services (DB, Auth, EventBus)
 
-### Changed
-- Replaced mock Jira plugin with practical WhatsApp chat analysis integration
-- Enhanced error handling and logging across all components
-- Improved data validation and input sanitization
-- Updated plugin architecture to support declarative A2UI patterns
+### Testing
+- Created comprehensive test suite for A2UI orchestrator format validation
+- Added tests for email user_id fix validation
+- All existing tests passing
 
-### Fixed
-- Config.py formatting issues with stray text
-- Automated review false positive patterns
-- Code synchronization with GitHub repository
-- Method compatibility between A2UI router and WhatsApp analyzer
+### Code Quality
+- Improved code organization and modular architecture
+- Enhanced security practices
+- Better separation of concerns
 
-### Security
-- Added validation patterns for automated security review systems
-- Implemented privacy-aware data processing for WhatsApp chats
-- Enhanced input validation for file uploads and chat content
-- Added secure error handling to prevent information leakage
+## Previous Releases
 
-## [0.9.0] - 2023-12-15
-
-### Added
+### [v0.1.0] - 2024-12-XX
 - Initial A2UI framework implementation
-- Basic plugin architecture
-- Mock Jira integration (replaced in v1.0.0)
-- Core routing and API endpoints
-
-### Changed
-- Initial project structure setup
-- Basic authentication and authorization
-
-## [0.1.0] - 2023-12-01
-
-### Added
-- Project initialization
-- Basic FastAPI setup
-- Core configuration management
-- Initial database schema
-
----
-
-## Release Notes
-
-### WhatsApp Integration Features
-
-The WhatsApp chat analysis integration provides comprehensive insights into chat exports:
-
-1. **Chat Parsing**: Supports both WhatsApp's TXT and JSON export formats
-2. **Participant Analysis**: Message counts, word counts, and activity patterns per participant
-3. **Sentiment Analysis**: Overall chat sentiment and per-message sentiment distribution
-4. **Activity Patterns**: Peak activity hours, most active days, and hourly distribution
-5. **Media Statistics**: Text-to-media ratio and media type distribution
-6. **Conversation Insights**: Question ratios, response times, and top conversation topics
-7. **Word Analysis**: Most frequent words and vocabulary richness metrics
-
-### Plugin System
-
-The plugin management system enables extensible functionality:
-
-1. **Plugin Registration**: Dynamic plugin registration with metadata
-2. **Lifecycle Management**: Enable/disable plugins with state persistence
-3. **Analytics**: Usage tracking and error monitoring
-4. **Skill Store**: Plugin discovery and installation interface
-5. **A2UI Integration**: Declarative UI component generation
-
-### Usage
-
-```python
-# Analyze WhatsApp chat
-from a2ui_integration.whatsapp_analyzer import WhatsAppAnalyzer
-
-analyzer = WhatsAppAnalyzer()
-messages = analyzer.parse_chat_export(chat_content, "txt")
-analysis = analyzer.analyze_chat(messages)
-
-# Use plugin manager
-from a2ui_integration.plugin_manager import PluginManager
-
-pm = PluginManager()
-pm.register_plugin(plugin_config)
-pm.enable_plugin("whatsapp_analyzer")
-```
-
-### API Endpoints
-
-- `POST /api/whatsapp/analyze-chat` - Analyze chat content
-- `POST /api/whatsapp/upload-chat` - Upload and analyze chat file
-- `GET /api/skill-store/plugins` - List available plugins
-- `POST /api/skill-store/plugins/{plugin_id}/enable` - Enable plugin
-- `GET /api/skill-store/whatsapp/sample-analysis` - Get sample analysis
-
----
-
-For more information, see the project documentation at [docs.a2ui.com](https://docs.a2ui.com).
+- Basic AppShell architecture
+- Email management system
+- Authentication system
+- State machine implementation
