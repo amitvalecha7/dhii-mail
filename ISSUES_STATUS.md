@@ -155,9 +155,14 @@
 **Date**: 2025-01-04
 **Description**: Implemented `PluginInstaller` in the Kernel to fetch, validate, and install plugins from the Registry. Added unit tests.
 
+### ✅ Issue #65: Feature: Plugin Runtime Environment
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Implemented the sandboxed execution environment (Glass Wall) in `a2ui_integration/core/sandbox.py` and `runner.py`, enabling safe plugin execution with restricted globals.
+
 ## Next Recommended Issue
 
-**Issue #65: Feature: Plugin Runtime Environment** - Implement the sandboxed execution environment (Glass Wall) for loading and running installed plugins.
+**Issue #66: Feature: Plugin SDK** - Create the developer-facing SDK (`dhii_sdk`) that wraps the low-level Kernel API for building plugins easily.
 
 ---
 *Last Updated: 2025-01-04*
