@@ -147,6 +147,15 @@ setup_middleware(app)
 from a2ui_integration.a2ui_router_updated import router as a2ui_router_updated
 app.include_router(a2ui_router_updated)
 
+# Import and include Skill Store router for plugin management
+from a2ui_integration.skill_store import skill_store_router, initialize_skill_store
+from a2ui_integration.plugin_manager import PluginManager
+
+# Initialize plugin manager and skill store
+plugin_manager = PluginManager()
+initialize_skill_store(plugin_manager)
+app.include_router(skill_store_router)
+
 # Remove old static file mounting - A2UI will be served through API only
 # app.mount("/static", StaticFiles(directory="a2ui_integration/client"), name="a2ui_static")
 

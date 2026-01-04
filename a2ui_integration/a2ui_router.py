@@ -1,7 +1,7 @@
 # FastAPI Router for A2UI Meeting Assistant
 # Standalone router that can be imported into main.py
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -10,12 +10,16 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime
+import io
 
 # Import from existing modules (avoid circular imports)
 from auth import get_current_user
 from a2ui_integration.agent.agent_updated_v2 import run_meeting_agent_async
 from marketing_manager import CampaignCreate
 from a2ui_integration.a2ui_components_extended import A2UIComponents, A2UITemplates
+from a2ui_integration.whatsapp_analyzer import WhatsAppAnalyzer
+from a2ui_integration.plugin_manager import plugin_manager
+from a2ui_integration.skill_store_ui import create_kernel_dashboard_ui, create_plugin_store_ui
 
 logger = logging.getLogger(__name__)
 
@@ -635,9 +639,408 @@ def create_booking_success_ui(request: MeetingBookingRequest, meeting_data: Dict
                 "contents": []
             }
         }
-    ]
-    
+    }
+
     return json.dumps(success_components)
+
+# WhatsApp Integration Models
+class WhatsAppAnalysisRequest(BaseModel):
+    chat_content: str
+    filename: str = "chat.txt"
+    format_type: str = "txt"  # "txt" or "json"
+
+class WhatsAppAnalysisResponse(BaseModel):
+    status: str
+    analysis: Optional[Dict[str, Any]] = None
+    summary: Optional[str] = None
+    error: Optional[str] = None
+    a2ui_json: Optional[str] = None
+
+# Initialize WhatsApp analyzer
+whatsapp_analyzer = WhatsAppAnalyzer()
+
+# WhatsApp Integration Endpoints
+@router.post("/whatsapp/analyze-chat", response_model=WhatsAppAnalysisResponse)
+async def analyze_whatsapp_chat(
+    chat_content: str = Form(...),
+    filename: str = Form("chat.txt"),
+    format_type: str = Form("txt")
+):
+    """Analyze WhatsApp chat export and return A2UI components"""
+    try:
+        # Determine format from filename if not specified
+        if format_type == "txt" and filename.endswith(".json"):
+            format_type = "json"
+        
+        # Parse the chat content
+        messages = whatsapp_analyzer.parse_chat_export(chat_content, format_type)
+        
+        if not messages:
+            return WhatsAppAnalysisResponse(
+                status="failed",
+                error="No messages found in chat export"
+            )
+        
+        # Analyze the chat
+        analysis = whatsapp_analyzer.analyze_chat(messages)
+        
+        # Generate summary
+        summary = f"Analyzed {len(messages)} messages from {len(analysis['participant_stats'])} participants"
+        
+        # Create A2UI components for the analysis
+        a2ui_components = create_whatsapp_analysis_ui(analysis, summary)
+        a2ui_json = json.dumps(a2ui_components)
+        
+        # Track plugin usage
+        plugin_manager.increment_usage("whatsapp_analyzer")
+        
+        return WhatsAppAnalysisResponse(
+            status="success",
+            analysis=analysis,
+            summary=summary,
+            a2ui_json=a2ui_json
+        )
+        
+    except Exception as e:
+        logger.error(f"Error analyzing WhatsApp chat: {e}")
+        error_components = create_a2ui_error_components(str(e))
+        error_ui = json.dumps(error_components)
+        
+        # Track plugin error
+        plugin_manager.increment_error("whatsapp_analyzer", str(e))
+        
+        return WhatsAppAnalysisResponse(
+            status="failed",
+            error=str(e),
+            a2ui_json=error_ui
+        )
+
+@router.post("/whatsapp/upload-chat")
+async def upload_whatsapp_chat(file: UploadFile = File(...)):
+    """Upload WhatsApp chat file for analysis"""
+    try:
+        # Validate file type
+        if not file.filename.endswith((".txt", ".json")):
+            raise HTTPException(status_code=400, detail="Only .txt and .json files are supported")
+        
+        # Read file content
+        content = await file.read()
+        chat_content = content.decode('utf-8')
+        
+        # Determine format
+        format_type = "json" if file.filename.endswith(".json") else "txt"
+        
+        # Parse and analyze
+        messages = whatsapp_analyzer.parse_chat_export(chat_content, format_type)
+        analysis = whatsapp_analyzer.analyze_chat(messages)
+        
+        # Create A2UI components
+        summary = f"Analyzed {len(messages)} messages from {file.filename}"
+        a2ui_components = create_whatsapp_analysis_ui(analysis, summary)
+        a2ui_json = json.dumps(a2ui_components)
+        
+        # Track plugin usage
+        plugin_manager.increment_usage("whatsapp_analyzer")
+        
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "message_count": len(messages),
+            "participant_count": len(analysis["participant_stats"]),
+            "analysis": analysis,
+            "a2ui_json": a2ui_json,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error uploading WhatsApp chat: {e}")
+        # Track plugin error
+        plugin_manager.increment_error("whatsapp_analyzer", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/whatsapp/plugin-info")
+async def get_whatsapp_plugin_info():
+    """Get WhatsApp plugin information and status"""
+    try:
+        plugin_info = plugin_manager.get_plugin_info("whatsapp_analyzer")
+        if not plugin_info:
+            return {
+                "status": "not_found",
+                "message": "WhatsApp analyzer plugin not found"
+            }
+        
+        return {
+            "status": "success",
+            "plugin": plugin_info,
+            "capabilities": [
+                "Chat export parsing (txt/json)",
+                "Message analysis and statistics",
+                "Participant activity patterns",
+                "Sentiment analysis",
+                "Media usage statistics",
+                "Conversation insights",
+                "Privacy-aware processing"
+            ],
+            "supported_formats": ["txt", "json"],
+            "max_file_size": "10MB",
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting WhatsApp plugin info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Helper function to create WhatsApp analysis UI components
+def create_whatsapp_analysis_ui(analysis: Dict[str, Any], summary: str) -> List[Dict[str, Any]]:
+    """Create A2UI components for WhatsApp chat analysis"""
+    participant_stats = analysis.get("participant_stats", {})
+    activity_patterns = analysis.get("activity_patterns", {})
+    sentiment_analysis = analysis.get("sentiment_analysis", {})
+    
+    return [
+        {
+            "beginRendering": {
+                "surfaceId": "whatsapp-analysis",
+                "root": "analysis-container",
+                "styles": {"primaryColor": "#25D366", "font": "Inter"}  # WhatsApp green
+            }
+        },
+        {
+            "surfaceUpdate": {
+                "surfaceId": "whatsapp-analysis",
+                "components": [
+                    {
+                        "id": "analysis-container",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": [
+                                        "header-section",
+                                        "overview-section", 
+                                        "participants-section",
+                                        "activity-section",
+                                        "sentiment-section",
+                                        "insights-section"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "header-section",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": ["whatsapp-icon", "analysis-title", "summary-text"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "whatsapp-icon",
+                        "component": {
+                            "Icon": {
+                                "name": "chat",
+                                "style": {"fontSize": "48px", "color": "#25D366", "marginBottom": "16px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "analysis-title",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": "WhatsApp Chat Analysis"},
+                                "style": {"fontSize": "24px", "fontWeight": "bold", "color": "#1f2937", "marginBottom": "8px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "summary-text",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": summary},
+                                "style": {"fontSize": "16px", "color": "#6b7280", "marginBottom": "24px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "overview-section",
+                        "component": {
+                            "Card": {
+                                "title": {"literalString": "Overview"},
+                                "content": {
+                                    "explicitList": ["total-messages", "date-range", "media-count"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "total-messages",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"📊 Total Messages: {analysis.get('overview', {}).get('total_messages', 0)}"},
+                                "style": {"fontSize": "14px", "marginBottom": "4px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "date-range",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"📅 Period: {analysis.get('overview', {}).get('date_range', 'N/A')}"},
+                                "style": {"fontSize": "14px", "marginBottom": "4px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "media-count",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"🎬 Media Files: {analysis.get('media_statistics', {}).get('total_media', 0)}"},
+                                "style": {"fontSize": "14px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "participants-section",
+                        "component": {
+                            "Card": {
+                                "title": {"literalString": "Participants"},
+                                "content": {
+                                    "explicitList": ["participant-list"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "participant-list",
+                        "component": {
+                            "ListView": {
+                                "items": {
+                                    "explicitList": [
+                                        {
+                                            "name": name,
+                                            "messages": stats.get("message_count", 0),
+                                            "words": stats.get("word_count", 0)
+                                        }
+                                        for name, stats in participant_stats.items()
+                                    ]
+                                },
+                                "itemBuilder": {
+                                    "type": "participant_item",
+                                    "template": "{name}: {messages} messages, {words} words"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "activity-section",
+                        "component": {
+                            "Card": {
+                                "title": {"literalString": "Activity Patterns"},
+                                "content": {
+                                    "explicitList": ["peak-hours", "daily-activity"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "peak-hours",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"⏰ Peak Hours: {activity_patterns.get('peak_hours', 'N/A')}"},
+                                "style": {"fontSize": "14px", "marginBottom": "4px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "daily-activity",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"📈 Most Active Day: {activity_patterns.get('most_active_day', 'N/A')}"},
+                                "style": {"fontSize": "14px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "sentiment-section",
+                        "component": {
+                            "Card": {
+                                "title": {"literalString": "Sentiment Analysis"},
+                                "content": {
+                                    "explicitList": ["overall-sentiment", "positive-ratio", "negative-ratio"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "overall-sentiment",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"😊 Overall: {sentiment_analysis.get('overall_sentiment', 'Neutral')}"},
+                                "style": {"fontSize": "14px", "marginBottom": "4px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "positive-ratio",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"✅ Positive: {sentiment_analysis.get('positive_ratio', 0):.1%}"},
+                                "style": {"fontSize": "14px", "marginBottom": "4px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "negative-ratio",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": f"❌ Negative: {sentiment_analysis.get('negative_ratio', 0):.1%}"},
+                                "style": {"fontSize": "14px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "insights-section",
+                        "component": {
+                            "Card": {
+                                "title": {"literalString": "Key Insights"},
+                                "content": {
+                                    "explicitList": ["insights-list"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "insights-list",
+                        "component": {
+                            "ListView": {
+                                "items": {
+                                    "explicitList": analysis.get("conversation_insights", {}).get("key_insights", [])
+                                },
+                                "itemBuilder": {
+                                    "type": "insight_item",
+                                    "template": "• {insight}"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "dataModelUpdate": {
+                "surfaceId": "whatsapp-analysis",
+                "path": "/",
+                "contents": {
+                    "analysis": analysis,
+                    "summary": summary,
+                    "participant_count": len(participant_stats),
+                    "total_messages": analysis.get("overview", {}).get("total_messages", 0)
+                }
+            }
+        }
+    ]
 
 def create_meeting_details_ui(meeting: Dict[str, Any]) -> str:
     """Create A2UI JSON for meeting details"""
@@ -2391,3 +2794,742 @@ def create_marketing_dashboard_ui(dashboard_data) -> str:
     ]
     
     return json.dumps(dashboard_components)
+
+# WhatsApp Chat Analysis Endpoints for A2UI
+@router.post("/whatsapp/analyze")
+async def analyze_whatsapp_chat_a2ui(request: dict):
+    """Analyze WhatsApp chat content and return A2UI JSON"""
+    try:
+        # Import WhatsApp analyzer
+        from a2ui_integration.whatsapp_analyzer import whatsapp_analyzer
+        
+        # Get chat content from request
+        chat_content = request.get("chat_content", "")
+        filename = request.get("filename", "chat.txt")
+        
+        if not chat_content:
+            error_ui = create_a2ui_error_components("No chat content provided")
+            return {
+                "success": False,
+                "error": "No chat content provided",
+                "a2ui_json": error_ui,
+                "timestamp": datetime.now()
+            }
+        
+        # Process the chat
+        result = whatsapp_analyzer.process_chat_file(chat_content, filename)
+        
+        if result["status"] == "failed":
+            error_ui = create_a2ui_error_components(result.get("error", "Analysis failed"))
+            return {
+                "success": False,
+                "error": result.get("error", "Analysis failed"),
+                "a2ui_json": error_ui,
+                "timestamp": datetime.now()
+            }
+        
+        # Generate A2UI JSON for WhatsApp analysis
+        analysis_ui = create_whatsapp_analysis_ui(result.get("analysis", {}), result.get("summary", {}))
+        
+        return {
+            "success": True,
+            "analysis": result.get("analysis"),
+            "summary": result.get("summary"),
+            "a2ui_json": analysis_ui,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing WhatsApp chat via A2UI: {e}")
+        error_ui = create_a2ui_error_components(str(e))
+        return {
+            "success": False,
+            "error": str(e),
+            "a2ui_json": error_ui,
+            "timestamp": datetime.now()
+        }
+
+@router.get("/whatsapp/sample")
+async def get_whatsapp_sample_analysis_a2ui():
+    """Get sample WhatsApp analysis for A2UI demonstration"""
+    try:
+        # Import WhatsApp analyzer for sample data
+        from a2ui_integration.whatsapp_analyzer import whatsapp_analyzer
+        
+        # Get sample analysis
+        sample_data = whatsapp_analyzer.get_sample_analysis()
+        
+        # Generate A2UI JSON for sample analysis
+        analysis_ui = create_whatsapp_analysis_ui(sample_data.get("analysis", {}), sample_data.get("summary", {}))
+        
+        return {
+            "success": True,
+            "analysis": sample_data.get("analysis"),
+            "summary": sample_data.get("summary"),
+            "a2ui_json": analysis_ui,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting sample WhatsApp analysis via A2UI: {e}")
+        error_ui = create_a2ui_error_components(str(e))
+        return {
+            "success": False,
+            "error": str(e),
+            "a2ui_json": error_ui,
+            "timestamp": datetime.now()
+        }
+
+# Helper function for WhatsApp analysis A2UI components
+def create_whatsapp_analysis_ui(analysis_data: dict, summary_data: dict) -> str:
+    """Create A2UI JSON for WhatsApp chat analysis"""
+    components = [
+        {
+            "beginRendering": {
+                "surfaceId": "whatsapp-analysis",
+                "root": "analysis-container",
+                "styles": {"primaryColor": "#25D366", "font": "Inter"}
+            }
+        },
+        {
+            "surfaceUpdate": {
+                "surfaceId": "whatsapp-analysis",
+                "components": [
+                    {
+                        "id": "analysis-container",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": ["analysis-header", "overview-card", "sentiment-card", "activity-card", "participants-card", "insights-card"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "analysis-header",
+                        "component": {
+                            "Row": {
+                                "children": {
+                                    "explicitList": ["header-icon", "header-title"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "header-icon",
+                        "component": {
+                            "Icon": {
+                                "name": "chat_bubble",
+                                "style": {"fontSize": "32px", "color": "#25D366", "marginRight": "12px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "header-title",
+                        "component": {
+                            "Text": {
+                                "usageHint": "h1",
+                                "text": {"literalString": "WhatsApp Chat Analysis"},
+                                "style": {"color": "#25D366"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "overview-card",
+                        "component": {
+                            "Card": {
+                                "child": "overview-content",
+                                "style": {"marginBottom": "16px", "padding": "16px", "backgroundColor": "#f0fdf4"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "overview-content",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": ["overview-title", "overview-stats"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "overview-title",
+                        "component": {
+                            "Text": {
+                                "usageHint": "h3",
+                                "text": {"literalString": "Chat Overview"},
+                                "style": {"color": "#166534", "marginBottom": "12px"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "overview-stats",
+                        "component": {
+                            "Row": {
+                                "children": {
+                                    "explicitList": ["total-messages", "total-participants", "avg-messages"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "total-messages",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": ["messages-number", "messages-label"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "messages-number",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": str(analysis_data.get("overview", {}).get("total_messages", 0))},
+                                "style": {"fontSize": "24px", "fontWeight": "bold", "color": "#166534"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "messages-label",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": "Total Messages"},
+                                "style": {"fontSize": "12px", "color": "#166534"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "total-participants",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": ["participants-number", "participants-label"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "participants-number",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": str(analysis_data.get("overview", {}).get("total_participants", 0))},
+                                "style": {"fontSize": "24px", "fontWeight": "bold", "color": "#166534"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "participants-label",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": "Participants"},
+                                "style": {"fontSize": "12px", "color": "#166534"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "avg-messages",
+                        "component": {
+                            "Column": {
+                                "children": {
+                                    "explicitList": ["avg-number", "avg-label"]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": "avg-number",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": str(analysis_data.get("overview", {}).get("avg_messages_per_day", 0))},
+                                "style": {"fontSize": "24px", "fontWeight": "bold", "color": "#166534"}
+                            }
+                        }
+                    },
+                    {
+                        "id": "avg-label",
+                        "component": {
+                            "Text": {
+                                "text": {"literalString": "Avg/Day"},
+                                "style": {"fontSize": "12px", "color": "#166534"}
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+    
+    return json.dumps(components)
+
+# Kernel-based Plugin Management Endpoints
+@router.post("/kernel/register-plugin")
+async def register_kernel_plugin(plugin_data: dict):
+    """Register a new plugin with the kernel"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        kernel = Kernel()
+        
+        # Extract plugin information
+        plugin_id = plugin_data.get("plugin_id")
+        plugin_class = plugin_data.get("plugin_class")
+        plugin_type = plugin_data.get("plugin_type", "external")
+        
+        if not plugin_id or not plugin_class:
+            raise HTTPException(status_code=400, detail="plugin_id and plugin_class are required")
+        
+        # Register the plugin
+        success = kernel.register_plugin(plugin_id, plugin_class, plugin_type)
+        
+        if success:
+            return {
+                "status": "success",
+                "plugin_id": plugin_id,
+                "message": f"Plugin {plugin_id} registered successfully",
+                "timestamp": datetime.now()
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to register plugin")
+            
+    except Exception as e:
+        logger.error(f"Error registering kernel plugin: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/kernel/enable-plugin/{plugin_id}")
+async def enable_kernel_plugin(plugin_id: str):
+    """Enable a registered plugin"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        kernel = Kernel()
+        
+        success = kernel.enable_plugin(plugin_id)
+        
+        if success:
+            return {
+                "status": "success",
+                "plugin_id": plugin_id,
+                "message": f"Plugin {plugin_id} enabled successfully",
+                "timestamp": datetime.now()
+            }
+        else:
+            raise HTTPException(status_code=404, detail=f"Plugin {plugin_id} not found")
+            
+    except Exception as e:
+        logger.error(f"Error enabling kernel plugin: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/kernel/disable-plugin/{plugin_id}")
+async def disable_kernel_plugin(plugin_id: str):
+    """Disable a plugin"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        kernel = Kernel()
+        
+        success = kernel.disable_plugin(plugin_id)
+        
+        if success:
+            return {
+                "status": "success",
+                "plugin_id": plugin_id,
+                "message": f"Plugin {plugin_id} disabled successfully",
+                "timestamp": datetime.now()
+            }
+        else:
+            raise HTTPException(status_code=404, detail=f"Plugin {plugin_id} not found")
+            
+    except Exception as e:
+        logger.error(f"Error disabling kernel plugin: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/kernel/execute-capability")
+async def execute_kernel_capability(request: dict):
+    """Execute a plugin capability"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        kernel = Kernel()
+        
+        capability_id = request.get("capability_id")
+        params = request.get("params", {})
+        
+        if not capability_id:
+            raise HTTPException(status_code=400, detail="capability_id is required")
+        
+        # Execute the capability
+        result = await kernel.execute_capability(capability_id, params)
+        
+        return {
+            "status": "success",
+            "capability_id": capability_id,
+            "result": result,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error executing kernel capability: {e}")
+        error_components = create_a2ui_error_components(str(e))
+        error_ui = json.dumps(error_components)
+        
+        return {
+            "status": "failed",
+            "capability_id": capability_id,
+            "error": str(e),
+            "a2ui_json": error_ui,
+            "timestamp": datetime.now()
+        }
+
+@router.get("/kernel/plugins")
+async def get_kernel_plugins():
+    """Get all registered plugins"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        kernel = Kernel()
+        
+        plugins = kernel.get_all_plugins()
+        
+        return {
+            "status": "success",
+            "plugins": plugins,
+            "count": len(plugins),
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting kernel plugins: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/kernel/capabilities")
+async def get_kernel_capabilities():
+    """Get all available capabilities"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        kernel = Kernel()
+        
+        capabilities = kernel.get_all_capabilities()
+        
+        return {
+            "status": "success",
+            "capabilities": capabilities,
+            "count": len(capabilities),
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting kernel capabilities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/kernel/search")
+async def search_kernel_plugins(query: str):
+    """Search for plugins and capabilities"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        kernel = Kernel()
+        
+        results = kernel.search(query)
+        
+        return {
+            "status": "success",
+            "query": query,
+            "results": results,
+            "count": len(results),
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error searching kernel: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/kernel/dashboard")
+async def get_kernel_dashboard():
+    """Get kernel dashboard data with adjacency list operations"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        from a2ui_integration.core.types import PluginType
+        
+        kernel = Kernel()
+        
+        # Get all plugins
+        all_plugins = await kernel.list_plugins()
+        
+        # Get dashboard data
+        dashboard_data = {
+            "plugins": [
+                {
+                    "id": plugin.id,
+                    "name": plugin.name,
+                    "description": plugin.description,
+                    "type": plugin.type.value,
+                    "version": plugin.version,
+                    "author": plugin.author,
+                    "enabled": plugin.enabled,
+                    "capabilities": len(plugin.capabilities)
+                }
+                for plugin in all_plugins
+            ],
+            "stats": {
+                "total_plugins": len(all_plugins),
+                "enabled_plugins": len([p for p in all_plugins if p.enabled]),
+                "by_type": {
+                    plugin_type.value: len([p for p in all_plugins if p.type == plugin_type])
+                    for plugin_type in PluginType
+                }
+            }
+        }
+        
+        # Generate A2UI components for dashboard
+        a2ui_components = create_kernel_dashboard_ui(dashboard_data)
+        a2ui_json = json.dumps(a2ui_components)
+        
+        return {
+            "status": "success",
+            "dashboard": dashboard_data,
+            "a2ui_json": a2ui_json,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting kernel dashboard: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/kernel/plugin-store")
+async def get_kernel_plugin_store():
+    """Get plugin store interface with adjacency list operations"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        
+        kernel = Kernel()
+        
+        # Get all plugins (available for installation/enabling)
+        all_plugins = await kernel.list_plugins()
+        
+        # Format plugins for store display
+        store_plugins = [
+            {
+                "id": plugin.id,
+                "name": plugin.name,
+                "description": plugin.description,
+                "type": plugin.type.value,
+                "version": plugin.version,
+                "author": plugin.author,
+                "enabled": plugin.enabled,
+                "capabilities": [
+                    {
+                        "id": cap.id,
+                        "name": cap.name,
+                        "description": cap.description,
+                        "domain": cap.domain
+                    }
+                    for cap in plugin.capabilities
+                ]
+            }
+            for plugin in all_plugins
+        ]
+        
+        # Generate A2UI components for plugin store
+        a2ui_components = create_plugin_store_ui(store_plugins)
+        a2ui_json = json.dumps(a2ui_components)
+        
+        return {
+            "status": "success",
+            "plugins": store_plugins,
+            "a2ui_json": a2ui_json,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting kernel plugin store: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Skill Store Interface Endpoints
+@router.get("/skill-store/plugins")
+async def get_skill_store_plugins():
+    """Get all available plugins in the skill store"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        
+        kernel = Kernel()
+        
+        # Get all plugins
+        all_plugins = await kernel.list_plugins()
+        
+        # Format for skill store display
+        skill_store_plugins = [
+            {
+                "plugin_id": plugin.id,
+                "name": plugin.name,
+                "description": plugin.description,
+                "type": plugin.type.value,
+                "version": plugin.version,
+                "author": plugin.author,
+                "enabled": plugin.enabled,
+                "capabilities": [
+                    {
+                        "id": cap.id,
+                        "name": cap.name,
+                        "description": cap.description,
+                        "domain": cap.domain
+                    }
+                    for cap in plugin.capabilities
+                ],
+                "requires_auth": plugin.requires_auth if hasattr(plugin, 'requires_auth') else False,
+                "icon": plugin.icon if hasattr(plugin, 'icon') else "🔧",
+                "documentation_url": plugin.documentation_url if hasattr(plugin, 'documentation_url') else None,
+                "support_url": plugin.support_url if hasattr(plugin, 'support_url') else None
+            }
+            for plugin in all_plugins
+        ]
+        
+        # Create A2UI components
+        a2ui_components = create_skill_store_plugins_ui(skill_store_plugins)
+        a2ui_json = json.dumps(a2ui_components)
+        
+        return {
+            "status": "success",
+            "plugins": skill_store_plugins,
+            "a2ui_json": a2ui_json,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting skill store plugins: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/skill-store/plugins/{plugin_id}")
+async def get_skill_store_plugin_details(plugin_id: str):
+    """Get detailed information about a specific plugin"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        
+        kernel = Kernel()
+        
+        # Get all plugins and find the requested one
+        all_plugins = await kernel.list_plugins()
+        plugin = next((p for p in all_plugins if p.id == plugin_id), None)
+        
+        if not plugin:
+            raise HTTPException(status_code=404, detail="Plugin not found")
+        
+        # Format detailed plugin information
+        plugin_details = {
+            "plugin_id": plugin.id,
+            "name": plugin.name,
+            "description": plugin.description,
+            "type": plugin.type.value,
+            "version": plugin.version,
+            "author": plugin.author,
+            "enabled": plugin.enabled,
+            "capabilities": [
+                {
+                    "id": cap.id,
+                    "name": cap.name,
+                    "description": cap.description,
+                    "domain": cap.domain,
+                    "side_effects": cap.side_effects
+                }
+                for cap in plugin.capabilities
+            ],
+            "requires_auth": plugin.requires_auth if hasattr(plugin, 'requires_auth') else False,
+            "icon": plugin.icon if hasattr(plugin, 'icon') else "🔧",
+            "documentation_url": plugin.documentation_url if hasattr(plugin, 'documentation_url') else None,
+            "support_url": plugin.support_url if hasattr(plugin, 'support_url') else None,
+            "privacy_policy_url": plugin.privacy_policy_url if hasattr(plugin, 'privacy_policy_url') else None,
+            "settings": plugin.settings if hasattr(plugin, 'settings') else {},
+            "last_updated": plugin.last_updated if hasattr(plugin, 'last_updated') else None
+        }
+        
+        # Create A2UI components
+        a2ui_components = create_plugin_details_ui(plugin_details)
+        a2ui_json = json.dumps(a2ui_components)
+        
+        return {
+            "status": "success",
+            "plugin": plugin_details,
+            "a2ui_json": a2ui_json,
+            "timestamp": datetime.now()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting plugin details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/skill-store/plugins/{plugin_id}/enable")
+async def enable_skill_store_plugin(plugin_id: str):
+    """Enable a plugin"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        
+        kernel = Kernel()
+        
+        success = await kernel.enable_plugin(plugin_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to enable plugin")
+        
+        return {
+            "status": "success",
+            "message": f"Plugin {plugin_id} enabled successfully",
+            "timestamp": datetime.now()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error enabling plugin: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/skill-store/plugins/{plugin_id}/disable")
+async def disable_skill_store_plugin(plugin_id: str):
+    """Disable a plugin"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        
+        kernel = Kernel()
+        
+        success = await kernel.disable_plugin(plugin_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to disable plugin")
+        
+        return {
+            "status": "success",
+            "message": f"Plugin {plugin_id} disabled successfully",
+            "timestamp": datetime.now()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error disabling plugin: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/skill-store/search")
+async def search_skill_store(query: str, domains: Optional[str] = None):
+    """Search plugins and capabilities in the skill store"""
+    try:
+        from a2ui_integration.core.kernel import Kernel
+        
+        kernel = Kernel()
+        
+        # Parse domains if provided
+        domain_list = domains.split(",") if domains else None
+        
+        # Search using kernel's search method
+        search_results = await kernel.search(query, domain_list)
+        
+        # Create A2UI components for search results
+        a2ui_components = create_search_results_ui(search_results, query)
+        a2ui_json = json.dumps(a2ui_components)
+        
+        return {
+            "status": "success",
+            "query": query,
+            "domains": domain_list,
+            "results": search_results,
+            "a2ui_json": a2ui_json,
+            "timestamp": datetime.now()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error searching skill store: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
