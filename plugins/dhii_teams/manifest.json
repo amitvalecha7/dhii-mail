@@ -1,0 +1,46 @@
+{
+  "id": "dhii_teams",
+  "name": "Teams Bridge",
+  "version": "0.1.0",
+  "description": "Integration with Microsoft Teams.",
+  "permissions": ["network"],
+  "capabilities": [
+    {
+      "id": "get_channels",
+      "type": "action",
+      "name": "Get Channels",
+      "description": "Fetch Teams channels and recent activity",
+      "input_schema": {},
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "const": "card"},
+          "title": {"type": "string"},
+          "children": {"type": "array"}
+        }
+      }
+    },
+    {
+      "id": "post_message",
+      "type": "action",
+      "name": "Post Message",
+      "description": "Post a message to a channel",
+      "input_schema": {
+        "type": "object",
+        "required": ["channel_id", "message"],
+        "properties": {
+          "channel_id": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "const": "card"},
+          "title": {"type": "string"},
+          "children": {"type": "array"}
+        }
+      }
+    }
+  ]
+}
