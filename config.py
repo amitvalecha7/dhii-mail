@@ -5,7 +5,7 @@ Handles environment-based configuration with support for dev/prod profiles
 
 import os
 from typing import List, Optional
-from pydantic import Field
+from pydantic import Field, ConfigDict
 try:
     from pydantic_settings import BaseSettings
 except ImportError:
@@ -63,10 +63,11 @@ class Settings(BaseSettings):
     uvicorn_port: int = Field(default=8005, env="UVICORN_PORT")
     uvicorn_host: str = Field(default="0.0.0.0", env="UVICORN_HOST")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False
+    )
     
     @property
     def is_development(self) -> bool:

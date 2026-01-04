@@ -66,91 +66,90 @@ class RateLimiter:
 # Global rate limiter instance
 rate_limiter = RateLimiter()
 
+async def logging_middleware(request: Request, call_next):
+    """Log all requests and responses."""
+    start_time = time.time()
+    
+    # Log request
+    logger.info(f"Request: {request.method} {request.url.path} from {request.client.host}")
+    
+    # Process request
+    response = await call_next(request)
+    
+    # Calculate processing time
+    process_time = time.time() - start_time
+    
+    # Log response
+    logger.info(
+        f"Response: {response.status_code} for {request.method} {request.url.path} "
+        f"in {process_time:.3f}s"
+    )
+    
+    # Add processing time header
+    response.headers["X-Process-Time"] = str(process_time)
+    
+    return response
+
+async def rate_limit_middleware(request: Request, call_next):
+    """Apply rate limiting to requests."""
+    # Skip rate limiting for certain paths
+    if request.url.path in ["/health", "/"]:
+        return await call_next(request)
+    
+    # Get identifier (IP address or user ID if authenticated)
+    identifier = request.client.host
+    
+    # Check for authentication token to apply user-specific rate limiting
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        # For authenticated users, use a combination of user ID and IP
+        # This allows for more granular rate limiting
+        try:
+            # Extract user identifier from token (simplified approach)
+            identifier = f"user_auth_{identifier}"
+        except Exception:
+            # Fall back to IP-based if token parsing fails
+            pass
+    
+    # Check rate limit
+    if rate_limiter.is_rate_limited(identifier):
+        logger.warning(f"Rate limit exceeded for {identifier}")
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Rate limit exceeded", "retry_after": 60}
+        )
+    
+    return await call_next(request)
+
+async def security_headers_middleware(request: Request, call_next):
+    """Add security headers to responses."""
+    response = await call_next(request)
+    
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    return response
+
+async def database_session_middleware(request: Request, call_next):
+    """Ensure database connection is available for each request."""
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        # Log the error but let it bubble up to the global exception handler
+        logger.error(f"Error in request {request.url.path}: {e}")
+        raise e
+
 def setup_middleware(app: FastAPI):
     """Setup all middleware for the application."""
     
-    @app.middleware("http")
-    async def logging_middleware(request: Request, call_next):
-        """Log all requests and responses."""
-        start_time = time.time()
-        
-        # Log request
-        logger.info(f"Request: {request.method} {request.url.path} from {request.client.host}")
-        
-        # Process request
-        response = await call_next(request)
-        
-        # Calculate processing time
-        process_time = time.time() - start_time
-        
-        # Log response
-        logger.info(
-            f"Response: {response.status_code} for {request.method} {request.url.path} "
-            f"in {process_time:.3f}s"
-        )
-        
-        # Add processing time header
-        response.headers["X-Process-Time"] = str(process_time)
-        
-        return response
-    
-    @app.middleware("http")
-    async def rate_limit_middleware(request: Request, call_next):
-        """Apply rate limiting to requests."""
-        # Skip rate limiting for certain paths
-        if request.url.path in ["/health", "/"]:
-            return await call_next(request)
-        
-        # Get identifier (IP address or user ID if authenticated)
-        identifier = request.client.host
-        
-        # Check for authentication token to apply user-specific rate limiting
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            # For authenticated users, use a combination of user ID and IP
-            # This allows for more granular rate limiting
-            try:
-                # Extract user identifier from token (simplified approach)
-                identifier = f"user_auth_{identifier}"
-            except Exception:
-                # Fall back to IP-based if token parsing fails
-                pass
-        
-        # Check rate limit
-        if rate_limiter.is_rate_limited(identifier):
-            logger.warning(f"Rate limit exceeded for {identifier}")
-            return JSONResponse(
-                status_code=429,
-                content={"error": "Rate limit exceeded", "retry_after": 60}
-            )
-        
-        return await call_next(request)
-    
-    @app.middleware("http")
-    async def security_headers_middleware(request: Request, call_next):
-        """Add security headers to responses."""
-        response = await call_next(request)
-        
-        # Security headers
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        
-        return response
-    
-    @app.middleware("http")
-    async def database_session_middleware(request: Request, call_next):
-        """Ensure database connection is available for each request."""
-        try:
-            response = await call_next(request)
-            return response
-        except Exception as e:
-            logger.error(f"Database error in request {request.url.path}: {e}")
-            return JSONResponse(
-                status_code=500,
-                content={"error": "Database error"}
-            )
+    app.middleware("http")(logging_middleware)
+    app.middleware("http")(rate_limit_middleware)
+    app.middleware("http")(security_headers_middleware)
+    app.middleware("http")(database_session_middleware)
 
 def get_client_ip(request: Request) -> str:
     """Get client IP address from request."""

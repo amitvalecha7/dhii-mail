@@ -13,6 +13,7 @@ from .a2ui_components_extended import A2UIComponents, A2UITemplates
 from .a2ui_state_machine import A2UIStateMachine, UIState
 from .a2ui_command_palette import A2UICommandPalette
 from .a2ui_appshell import A2UIAppShell
+from .data_structures import ComponentGraph
 
 logger = logging.getLogger(__name__)
 
@@ -97,16 +98,18 @@ class A2UIOrchestrator:
     
     def _render_dashboard(self) -> Dict[str, Any]:
         """Render main dashboard with A2UI components"""
+        graph = ComponentGraph()
+        
         # Welcome card
-        welcome_card = self.components.create_card(
-            title=f"Welcome {self.user_context.get('name', 'User')}",
-            content="Here's your workspace overview",
-            actions=[
+        welcome_card_id = graph.add_node("Card", {
+            "title": f"Welcome {self.user_context.get('name', 'User')}",
+            "content": "Here's your workspace overview",
+            "actions": [
                 {"label": "View Emails", "action": "navigate_email_inbox"},
                 {"label": "Check Calendar", "action": "navigate_calendar"},
                 {"label": "Book Meeting", "action": "navigate_meeting_book"}
             ]
-        )
+        })
         
         # Quick stats
         stats_data = [
@@ -115,34 +118,38 @@ class A2UIOrchestrator:
             {"label": "Pending Tasks", "value": self.user_context.get("pending_tasks", 0)}
         ]
         
-        stats_chart = self.components.create_chart(
-            chart_type="bar",
-            data=stats_data,
-            title="Quick Stats"
-        )
+        stats_chart_id = graph.add_node("Chart", {
+            "chart_type": "bar",
+            "data": stats_data,
+            "title": "Quick Stats"
+        })
         
         # Recent activity
-        recent_activity = self.components.create_list(
-            items=self.user_context.get("recent_activity", []),
-            title="Recent Activity"
-        )
+        recent_activity_id = graph.add_node("List", {
+            "items": self.user_context.get("recent_activity", []),
+            "title": "Recent Activity"
+        })
         
-        # Main layout
-        layout = self.components.create_layout(
-            orientation="vertical",
-            components=[
-                welcome_card,
-                self.components.create_layout(
-                    orientation="horizontal",
-                    components=[stats_chart, recent_activity]
-                )
-            ]
-        )
+        # Inner Layout (Horizontal)
+        inner_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
+        graph.add_child(inner_layout_id, stats_chart_id)
+        graph.add_child(inner_layout_id, recent_activity_id)
+        
+        # Main Layout (Vertical)
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(main_layout_id, welcome_card_id)
+        graph.add_child(main_layout_id, inner_layout_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -154,12 +161,13 @@ class A2UIOrchestrator:
     
     def _render_email_inbox(self) -> Dict[str, Any]:
         """Render email inbox with A2UI components"""
+        graph = ComponentGraph()
         emails = self.user_context.get("emails", [])
         
         # Email list table
-        email_table = self.components.create_table(
-            headers=["From", "Subject", "Date", "Status"],
-            rows=[
+        email_table_id = graph.add_node("Table", {
+            "headers": ["From", "Subject", "Date", "Status"],
+            "rows": [
                 [
                     email.get("from", ""),
                     email.get("subject", ""),
@@ -168,44 +176,49 @@ class A2UIOrchestrator:
                 ]
                 for email in emails[:10]  # Show first 10 emails
             ],
-            table_id="email_inbox_table"
-        )
+            "table_id": "email_inbox_table"
+        })
         
         # Email actions toolbar
-        toolbar = self.components.create_toolbar(
-            actions=[
+        toolbar_id = graph.add_node("Toolbar", {
+            "actions": [
                 {"label": "Compose", "action": "email_compose"},
                 {"label": "Refresh", "action": "email_refresh"},
                 {"label": "Search", "action": "email_search"}
             ]
-        )
+        })
         
         # Filter sidebar
-        filters = self.components.create_card(
-            title="Filters",
-            content="",
-            actions=[
+        filters_id = graph.add_node("Card", {
+            "title": "Filters",
+            "content": "",
+            "actions": [
                 {"label": "Unread", "action": "filter_unread"},
                 {"label": "Today", "action": "filter_today"},
                 {"label": "Important", "action": "filter_important"}
             ]
-        )
+        })
         
-        layout = self.components.create_layout(
-            orientation="horizontal",
-            components=[
-                filters,
-                self.components.create_layout(
-                    orientation="vertical",
-                    components=[toolbar, email_table]
-                )
-            ]
-        )
+        # Right layout (Toolbar + Table)
+        right_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(right_layout_id, toolbar_id)
+        graph.add_child(right_layout_id, email_table_id)
+        
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
+        graph.add_child(main_layout_id, filters_id)
+        graph.add_child(main_layout_id, right_layout_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -217,6 +230,8 @@ class A2UIOrchestrator:
     
     def _render_email_compose(self) -> Dict[str, Any]:
         """Render email compose interface"""
+        graph = ComponentGraph()
+        
         form_fields = [
             {"type": "text", "name": "to", "label": "To", "required": True},
             {"type": "text", "name": "subject", "label": "Subject", "required": True},
@@ -224,29 +239,30 @@ class A2UIOrchestrator:
             {"type": "file", "name": "attachments", "label": "Attachments"}
         ]
         
-        compose_form = self.components.create_form(
-            fields=form_fields,
-            submit_action="send_email",
-            form_id="email_compose_form"
-        )
+        compose_form_id = graph.add_node("Form", {
+            "fields": form_fields,
+            "submit_action": "send_email",
+            "form_id": "email_compose_form"
+        })
         
         # Template selector
-        templates = self.components.create_dropdown(
-            options=["Business", "Personal", "Meeting Request"]
-        )
+        templates_id = graph.add_node("Dropdown", {
+            "options": ["Business", "Personal", "Meeting Request"]
+        })
         
-        layout = self.components.create_layout(
-            orientation="vertical",
-            components=[
-                templates,
-                compose_form
-            ]
-        )
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(main_layout_id, templates_id)
+        graph.add_child(main_layout_id, compose_form_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -258,6 +274,8 @@ class A2UIOrchestrator:
     
     def _render_email_detail(self) -> Dict[str, Any]:
         """Render email detail view"""
+        graph = ComponentGraph()
+        
         email_data = self.user_context.get("email_detail", {
             "from": "sender@example.com",
             "to": "user@example.com", 
@@ -267,44 +285,45 @@ class A2UIOrchestrator:
         })
         
         # Email header card
-        header_card = self.components.create_card(
-            title=email_data.get("subject", "No Subject"),
-            content=f"From: {email_data.get('from', 'Unknown')}\nTo: {email_data.get('to', 'Unknown')}\nDate: {email_data.get('date', 'Unknown')}",
-            actions=[
+        header_card_id = graph.add_node("Card", {
+            "title": email_data.get("subject", "No Subject"),
+            "content": f"From: {email_data.get('from', 'Unknown')}\nTo: {email_data.get('to', 'Unknown')}\nDate: {email_data.get('date', 'Unknown')}",
+            "actions": [
                 {"label": "Reply", "action": "reply_email"},
                 {"label": "Forward", "action": "forward_email"},
                 {"label": "Delete", "action": "delete_email"}
             ]
-        )
+        })
         
         # Email content
-        content_card = self.components.create_card(
-            title="Email Content",
-            content=email_data.get("content", "No content available")
-        )
+        content_card_id = graph.add_node("Card", {
+            "title": "Email Content",
+            "content": email_data.get("content", "No content available")
+        })
         
         # Action toolbar
-        toolbar = self.components.create_toolbar(
-            actions=[
+        toolbar_id = graph.add_node("Toolbar", {
+            "actions": [
                 {"label": "Back to Inbox", "action": "navigate_email_inbox"},
                 {"label": "Mark as Read", "action": "mark_read"},
                 {"label": "Mark as Unread", "action": "mark_unread"}
             ]
-        )
+        })
         
-        layout = self.components.create_layout(
-            orientation="vertical",
-            components=[
-                toolbar,
-                header_card,
-                content_card
-            ]
-        )
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(main_layout_id, toolbar_id)
+        graph.add_child(main_layout_id, header_card_id)
+        graph.add_child(main_layout_id, content_card_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -316,42 +335,49 @@ class A2UIOrchestrator:
     
     def _render_calendar(self) -> Dict[str, Any]:
         """Render calendar view"""
+        graph = ComponentGraph()
+        
         # Calendar grid
-        calendar_grid = self.components.create_calendar(
-            events=self.user_context.get("calendar_events", [])
-        )
+        calendar_grid_id = graph.add_node("Calendar", {
+            "events": self.user_context.get("calendar_events", [])
+        })
         
         # Event list sidebar
-        event_list = self.components.create_list(
-            items=self.user_context.get("upcoming_events", []),
-            title="Upcoming Events"
-        )
+        event_list_id = graph.add_node("List", {
+            "items": self.user_context.get("upcoming_events", []),
+            "title": "Upcoming Events"
+        })
         
         # Calendar controls
-        controls = self.components.create_toolbar(
-            actions=[
+        controls_id = graph.add_node("Toolbar", {
+            "actions": [
                 {"label": "Today", "action": "calendar_today"},
                 {"label": "Month", "action": "calendar_month"},
                 {"label": "Week", "action": "calendar_week"},
                 {"label": "New Event", "action": "calendar_new_event"}
             ]
-        )
+        })
         
-        layout = self.components.create_layout(
-            orientation="horizontal",
-            components=[
-                self.components.create_layout(
-                    orientation="vertical",
-                    components=[controls, calendar_grid]
-                ),
-                event_list
-            ]
-        )
+        # Left layout (Controls + Calendar)
+        left_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(left_layout_id, controls_id)
+        graph.add_child(left_layout_id, calendar_grid_id)
+        
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
+        graph.add_child(main_layout_id, left_layout_id)
+        graph.add_child(main_layout_id, event_list_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -363,11 +389,12 @@ class A2UIOrchestrator:
     
     def _render_meeting_list(self) -> Dict[str, Any]:
         """Render meeting list view"""
+        graph = ComponentGraph()
         meetings = self.user_context.get("meetings", [])
         
-        meeting_table = self.components.create_table(
-            headers=["Title", "Date", "Time", "Participants", "Status"],
-            rows=[
+        meeting_table_id = graph.add_node("Table", {
+            "headers": ["Title", "Date", "Time", "Participants", "Status"],
+            "rows": [
                 [
                     meeting.get("title", ""),
                     meeting.get("date", ""),
@@ -377,25 +404,29 @@ class A2UIOrchestrator:
                 ]
                 for meeting in meetings
             ],
-            table_id="meeting_list_table"
-        )
+            "table_id": "meeting_list_table"
+        })
         
-        actions = self.components.create_toolbar(
-            actions=[
+        actions_id = graph.add_node("Toolbar", {
+            "actions": [
                 {"label": "Book Meeting", "action": "meeting_book"},
                 {"label": "Refresh", "action": "meeting_refresh"}
             ]
-        )
+        })
         
-        layout = self.components.create_layout(
-            orientation="vertical",
-            components=[actions, meeting_table]
-        )
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(main_layout_id, actions_id)
+        graph.add_child(main_layout_id, meeting_table_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -407,6 +438,8 @@ class A2UIOrchestrator:
     
     def _render_meeting_detail(self) -> Dict[str, Any]:
         """Render meeting detail view"""
+        graph = ComponentGraph()
+        
         meeting_data = self.user_context.get("meeting_detail", {
             "title": "Sample Meeting",
             "date": "2024-01-01",
@@ -419,57 +452,62 @@ class A2UIOrchestrator:
         })
         
         # Meeting header card
-        header_card = self.components.create_card(
-            title=meeting_data.get("title", "No Title"),
-            content=f"Date: {meeting_data.get('date', 'Unknown')}\nTime: {meeting_data.get('time', 'Unknown')}\nDuration: {meeting_data.get('duration', 'Unknown')}\nLocation: {meeting_data.get('location', 'Unknown')}",
-            actions=[
+        header_card_id = graph.add_node("Card", {
+            "title": meeting_data.get("title", "No Title"),
+            "content": f"Date: {meeting_data.get('date', 'Unknown')}\nTime: {meeting_data.get('time', 'Unknown')}\nDuration: {meeting_data.get('duration', 'Unknown')}\nLocation: {meeting_data.get('location', 'Unknown')}",
+            "actions": [
                 {"label": "Join Meeting", "action": "join_meeting"},
                 {"label": "Reschedule", "action": "reschedule_meeting"},
                 {"label": "Cancel", "action": "cancel_meeting"}
             ]
-        )
+        })
         
         # Participants list
-        participants_card = self.components.create_card(
-            title="Participants",
-            content=f"Total: {len(meeting_data.get('participants', []))}",
-            actions=[
+        participants_card_id = graph.add_node("Card", {
+            "title": "Participants",
+            "content": f"Total: {len(meeting_data.get('participants', []))}",
+            "actions": [
                 {"label": "Add Participant", "action": "add_participant"},
                 {"label": "Send Update", "action": "send_meeting_update"}
             ]
-        )
+        })
         
         # Agenda and details
-        agenda_card = self.components.create_card(
-            title="Agenda",
-            content=meeting_data.get("agenda", "No agenda available")
-        )
+        agenda_card_id = graph.add_node("Card", {
+            "title": "Agenda",
+            "content": meeting_data.get("agenda", "No agenda available")
+        })
         
         # Action toolbar
-        toolbar = self.components.create_toolbar(
-            actions=[
+        toolbar_id = graph.add_node("Toolbar", {
+            "actions": [
                 {"label": "Back to Meetings", "action": "navigate_meeting_list"},
                 {"label": "Edit Details", "action": "edit_meeting"},
                 {"label": "Share Notes", "action": "share_meeting_notes"}
             ]
-        )
+        })
         
-        layout = self.components.create_layout(
-            orientation="vertical",
-            components=[
-                toolbar,
-                header_card,
-                self.components.create_layout(
-                    orientation="horizontal",
-                    components=[participants_card, agenda_card]
-                )
-            ]
-        )
+        # Bottom layout (Participants + Agenda)
+        bottom_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
+        graph.add_child(bottom_layout_id, participants_card_id)
+        graph.add_child(bottom_layout_id, agenda_card_id)
+        
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(main_layout_id, toolbar_id)
+        graph.add_child(main_layout_id, header_card_id)
+        graph.add_child(main_layout_id, bottom_layout_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -481,6 +519,8 @@ class A2UIOrchestrator:
     
     def _render_meeting_book(self) -> Dict[str, Any]:
         """Render meeting booking interface"""
+        graph = ComponentGraph()
+        
         # Meeting details form
         form_fields = [
             {"type": "text", "name": "title", "label": "Meeting Title", "required": True},
@@ -491,35 +531,36 @@ class A2UIOrchestrator:
             {"type": "textarea", "name": "agenda", "label": "Agenda", "required": False}
         ]
         
-        booking_form = self.components.create_form(
-            fields=form_fields,
-            submit_action="book_meeting",
-            form_id="meeting_book_form"
-        )
+        booking_form_id = graph.add_node("Form", {
+            "fields": form_fields,
+            "submit_action": "book_meeting",
+            "form_id": "meeting_book_form"
+        })
         
         # Available time slots
-        available_slots = self.components.create_card(
-            title="Available Time Slots",
-            content="Select from available slots or propose custom time",
-            actions=[
+        available_slots_id = graph.add_node("Card", {
+            "title": "Available Time Slots",
+            "content": "Select from available slots or propose custom time",
+            "actions": [
                 {"label": "10:00 AM", "action": "select_time_10am"},
                 {"label": "2:00 PM", "action": "select_time_2pm"},
                 {"label": "4:00 PM", "action": "select_time_4pm"}
             ]
-        )
+        })
         
-        layout = self.components.create_layout(
-            orientation="horizontal",
-            components=[
-                booking_form,
-                available_slots
-            ]
-        )
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
+        graph.add_child(main_layout_id, booking_form_id)
+        graph.add_child(main_layout_id, available_slots_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -531,50 +572,52 @@ class A2UIOrchestrator:
     
     def _render_task_board(self) -> Dict[str, Any]:
         """Render task board view"""
+        graph = ComponentGraph()
         tasks = self.user_context.get("tasks", [])
         
         # Kanban columns
         columns = ["To Do", "In Progress", "Done"]
-        kanban_columns = []
+        
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
         
         for column in columns:
             column_tasks = [task for task in tasks if task.get("status") == column]
-            column_component = self.components.create_card(
-                title=column,
-                content="",
-                actions=[
-                    {"label": task.get("title", ""), "action": f"task_detail_{task.get('id', '')}"}
-                    for task in column_tasks
-                ]
-            )
-            kanban_columns.append(column_component)
-        
-        # Task creation form
-        task_form = self.components.create_form(
-            fields=[
-                {"type": "text", "name": "title", "label": "Task Title", "required": True},
-                {"type": "textarea", "name": "description", "label": "Description"},
-                {"type": "select", "name": "priority", "label": "Priority", "options": ["Low", "Medium", "High"]}
-            ],
-            submit_action="create_task",
-            form_id="task_create_form"
-        )
-        
-        layout = self.components.create_layout(
-            orientation="vertical",
-            components=[
-                self.components.create_layout(
-                    orientation="horizontal",
-                    components=kanban_columns
-                ),
-                task_form
-            ]
-        )
+            
+            # Create a layout for the column content
+            column_layout_id = graph.add_node("Layout", {
+                "orientation": "vertical"
+            })
+            
+            # Column header
+            header_id = graph.add_node("Card", {
+                "title": f"{column} ({len(column_tasks)})",
+                "content": ""
+            })
+            graph.add_child(column_layout_id, header_id)
+            
+            # Tasks in column
+            for task in column_tasks:
+                task_card_id = graph.add_node("Card", {
+                    "title": task.get("title", "Untitled"),
+                    "content": task.get("description", ""),
+                    "actions": [
+                        {"label": "View", "action": f"task_detail_{task.get('id', '')}"},
+                        {"label": "Move", "action": f"task_move_{task.get('id', '')}"}
+                    ]
+                })
+                graph.add_child(column_layout_id, task_card_id)
+            
+            graph.add_child(main_layout_id, column_layout_id)
+            
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -586,52 +629,63 @@ class A2UIOrchestrator:
     
     def _render_analytics(self) -> Dict[str, Any]:
         """Render analytics dashboard"""
+        graph = ComponentGraph()
+        
         # Email analytics
-        email_chart = self.components.create_chart(
-            chart_type="line",
-            data=self.user_context.get("email_analytics", []),
-            title="Email Activity"
-        )
+        email_chart_id = graph.add_node("Chart", {
+            "chart_type": "line",
+            "data": self.user_context.get("email_analytics", []),
+            "title": "Email Activity"
+        })
         
         # Meeting analytics
-        meeting_chart = self.components.create_chart(
-            chart_type="pie",
-            data=self.user_context.get("meeting_analytics", []),
-            title="Meeting Distribution"
-        )
+        meeting_chart_id = graph.add_node("Chart", {
+            "chart_type": "pie",
+            "data": self.user_context.get("meeting_analytics", []),
+            "title": "Meeting Distribution"
+        })
         
         # Task analytics
-        task_chart = self.components.create_chart(
-            chart_type="bar",
-            data=self.user_context.get("task_analytics", []),
-            title="Task Completion"
-        )
+        task_chart_id = graph.add_node("Chart", {
+            "chart_type": "bar",
+            "data": self.user_context.get("task_analytics", []),
+            "title": "Task Completion"
+        })
         
         # Summary cards
-        summary_cards = self.components.create_layout(
-            orientation="horizontal",
-            components=[
-                self.components.create_card("Total Emails", "1,234"),
-                self.components.create_card("Meetings This Week", "12"),
-                self.components.create_card("Tasks Completed", "45")
-            ]
-        )
+        summary_cards_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
         
-        layout = self.components.create_layout(
-            orientation="vertical",
-            components=[
-                summary_cards,
-                self.components.create_layout(
-                    orientation="horizontal",
-                    components=[email_chart, meeting_chart, task_chart]
-                )
-            ]
-        )
+        # Helper to add card node
+        def add_summary_card(title, content):
+            return graph.add_node("Card", {"title": title, "content": content})
+            
+        graph.add_child(summary_cards_layout_id, add_summary_card("Total Emails", "1,234"))
+        graph.add_child(summary_cards_layout_id, add_summary_card("Meetings This Week", "12"))
+        graph.add_child(summary_cards_layout_id, add_summary_card("Tasks Completed", "45"))
+        
+        # Charts layout
+        charts_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
+        graph.add_child(charts_layout_id, email_chart_id)
+        graph.add_child(charts_layout_id, meeting_chart_id)
+        graph.add_child(charts_layout_id, task_chart_id)
+        
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "vertical"
+        })
+        graph.add_child(main_layout_id, summary_cards_layout_id)
+        graph.add_child(main_layout_id, charts_layout_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -643,42 +697,45 @@ class A2UIOrchestrator:
     
     def _render_settings(self) -> Dict[str, Any]:
         """Render settings interface"""
+        graph = ComponentGraph()
+        
         # User preferences form
-        settings_form = self.components.create_form(
-            fields=[
+        settings_form_id = graph.add_node("Form", {
+            "fields": [
                 {"type": "text", "name": "name", "label": "Full Name"},
                 {"type": "email", "name": "email", "label": "Email Address"},
                 {"type": "select", "name": "timezone", "label": "Timezone", "options": ["UTC", "EST", "PST", "CST"]},
                 {"type": "checkbox", "name": "notifications", "label": "Enable Notifications"},
                 {"type": "checkbox", "name": "auto_sync", "label": "Auto-sync Calendar"}
             ],
-            submit_action="update_settings",
-            form_id="settings_form"
-        )
+            "submit_action": "update_settings",
+            "form_id": "settings_form"
+        })
         
         # Integration settings
-        integrations = self.components.create_card(
-            title="Integrations",
-            content="Manage your connected accounts and services",
-            actions=[
+        integrations_id = graph.add_node("Card", {
+            "title": "Integrations",
+            "content": "Manage your connected accounts and services",
+            "actions": [
                 {"label": "Google Calendar", "action": "configure_google_calendar"},
                 {"label": "Email Accounts", "action": "configure_email_accounts"},
                 {"label": "CRM Integration", "action": "configure_crm"}
             ]
-        )
+        })
         
-        layout = self.components.create_layout(
-            orientation="horizontal",
-            components=[
-                settings_form,
-                integrations
-            ]
-        )
+        # Main layout
+        main_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal"
+        })
+        graph.add_child(main_layout_id, settings_form_id)
+        graph.add_child(main_layout_id, integrations_id)
+        
+        graph.set_root(main_layout_id)
         
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": layout,
+            "layout": graph.to_json(),
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
         }
@@ -690,11 +747,22 @@ class A2UIOrchestrator:
     
     def _render_chat(self) -> Dict[str, Any]:
         """Render chat interface as A2UI component"""
+        graph = ComponentGraph()
+        
+        chat_id = graph.add_node("Chat", {
+            "messages": self.user_context.get("chat_messages", []),
+            "input_placeholder": "Type your message...",
+            "send_action": "send_chat_message"
+        })
+        
+        graph.set_root(chat_id)
+        
         # Create unified AppShell component
         component = {
             "type": "appshell",
-            "layout": self._get_chat_component(),
-            "navigation": self._get_navigation_bar()
+            "layout": graph.to_json(),
+            "navigation": self._get_navigation_bar(),
+            "chat_component": self._get_chat_component() # Keep this for the global chat component if needed
         }
         
         return {

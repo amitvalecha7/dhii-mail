@@ -6,11 +6,13 @@ Provides consistent error handling patterns across all modules
 import logging
 import traceback
 from typing import Dict, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import json
 
-logger = logging.getLogger(__name__)
+from a2ui_integration.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 class ErrorCategory(Enum):
     """Error categories for consistent error classification"""
@@ -22,6 +24,8 @@ class ErrorCategory(Enum):
     EXTERNAL_SERVICE = "external_service"
     INTERNAL = "internal"
     UNKNOWN = "unknown"
+    NOT_FOUND = "not_found"
+    RATE_LIMIT = "rate_limit"
 
 class ErrorSeverity(Enum):
     """Error severity levels"""
@@ -48,7 +52,7 @@ class AppError(Exception):
         self.code = code or f"{category.value.upper()}_ERROR"
         self.details = details or {}
         self.original_error = original_error
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
         self.traceback = traceback.format_exc() if original_error else None
         
         super().__init__(self.message)
@@ -136,6 +140,16 @@ class ResourceNotFoundError(AppError):
             message=message,
             category=ErrorCategory.NOT_FOUND,
             severity=ErrorSeverity.LOW,
+            **kwargs
+        )
+
+class RateLimitError(AppError):
+    """Rate limit exceeded errors"""
+    def __init__(self, message: str, **kwargs):
+        super().__init__(
+            message=message,
+            category=ErrorCategory.RATE_LIMIT,
+            severity=ErrorSeverity.MEDIUM,
             **kwargs
         )
 

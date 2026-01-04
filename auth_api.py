@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone
 import json
 import bcrypt
 from uuid import uuid4
@@ -608,7 +609,7 @@ async def api_signup(user_data: UserSignup):
             "name": user_data.name,
             "company": user_data.company,
             "password": hashed_password,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "email_connected": False,
             "onboarding_completed": False
         }

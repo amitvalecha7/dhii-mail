@@ -3,7 +3,6 @@ Core Kernel Implementation for dhii Mail A2UI System
 Provides the main kernel that manages plugins and coordinates capabilities
 """
 
-import logging
 import sqlite3
 import json
 from datetime import datetime
@@ -16,8 +15,9 @@ from .types import (
     PluginStatus, Capability, A2UIComponent, AdjacencyOperation
 )
 from .shared_services import SharedServices, get_shared_services, EventType, Event
+from .logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Kernel(KernelInterface):
@@ -41,20 +41,20 @@ class Kernel(KernelInterface):
         initialize_shared_services(self.db_path, self.secret_key)
         self.shared_services = get_shared_services()
         self._initialized = True
-        logger.info("Kernel shared services initialized")
+        logger.info("Kernel shared services initialized", extra_fields={"service": "kernel"})
 
     async def initialize(self):
         """Initialize kernel and load existing plugins"""
         try:
-            logger.info("Initializing kernel...")
+            logger.info("Initializing kernel...", extra_fields={"operation": "kernel_initialize"})
             
             # Load existing plugins
             await self._load_plugins_async()
             
-            logger.info("Kernel initialization completed")
+            logger.info("Kernel initialization completed", extra_fields={"operation": "kernel_initialize", "status": "success"})
             
         except Exception as e:
-            logger.error(f"Failed to initialize kernel: {e}")
+            logger.error("Failed to initialize kernel", extra_fields={"operation": "kernel_initialize", "error": str(e)})
             raise
     
     def _load_plugins(self):

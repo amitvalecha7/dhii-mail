@@ -117,11 +117,18 @@ async def test_kernel_functionality():
         
         # Test 3: Enable plugins
         print("\n🔌 Testing Plugin Enable...")
-        email_enable_success = kernel.enable_plugin("email")
-        calendar_enable_success = kernel.enable_plugin("calendar")
+        email_enable_success = await kernel.enable_plugin("email")
+        calendar_enable_success = await kernel.enable_plugin("calendar")
         
         if email_enable_success and calendar_enable_success:
             print("✅ Plugins enabled successfully")
+            
+            # Register plugin instances for capability execution
+            email_plugin_instance = EmailPlugin()
+            calendar_plugin_instance = CalendarPlugin()
+            kernel.register_plugin_instance("email", email_plugin_instance)
+            kernel.register_plugin_instance("calendar", calendar_plugin_instance)
+            print("✅ Plugin instances registered successfully")
         else:
             print("❌ Failed to enable plugins")
             return False
@@ -175,7 +182,8 @@ async def test_kernel_functionality():
             "title": "Test Meeting",
             "start_time": "2025-01-10T10:00:00",
             "end_time": "2025-01-10T11:00:00",
-            "description": "Test meeting from kernel system"
+            "description": "Test meeting from kernel system",
+            "organizer": "test@example.com"
         })
         
         if event_result.get("success"):
@@ -196,10 +204,10 @@ async def test_kernel_functionality():
         
         # Test 8: Search functionality
         print("\n🔍 Testing Universal Search...")
-        search_results = kernel.search("email")
+        search_results = await kernel.search("email")
         print(f"✅ Search found {len(search_results)} results for 'email'")
         
-        search_results = kernel.search("calendar")
+        search_results = await kernel.search("calendar")
         print(f"✅ Search found {len(search_results)} results for 'calendar'")
         
         # Test 9: Get stats
