@@ -85,12 +85,13 @@
 **Date**: 2025-01-04
 **Description**: Created `PRODUCT_VISION.md` (North Star) and `ROADMAP_Q1.md` (Phased Release Plan).
 
-### 📋 Issue #51: Strategy: A2UI Schema Contract
-**Status**: PENDING
-**Description**: Formalize the JSON Schema for AppShell, Cards, and Panes.
+### ✅ Issue #51: Strategy: A2UI Schema Contract
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Formalized the JSON Schema for AppShell, Cards, and Panes in `A2UI_SCHEMA.md`.
 
-### 📋 Issue #52: Strategy: Plugin SDK Governance
-**Status**: PENDING
+### � Issue #52: Strategy: Plugin SDK Governance
+**Status**: IN PROGRESS
 **Description**: Define sandbox rules, memory limits, and import restrictions.
 
 ### 📋 Issue #53: Strategy: Orchestrator API Contract
