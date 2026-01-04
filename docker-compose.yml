@@ -26,8 +26,8 @@ services:
   # Mock Orchestrator (for frontend dev)
   mock-orchestrator:
     build:
-      context: .
-      dockerfile: mock_server/Dockerfile
+      context: mock_server
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
@@ -51,7 +51,7 @@ services:
     build:
       context: middleware/gateway
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
       - mock-orchestrator
       - plugin-registry

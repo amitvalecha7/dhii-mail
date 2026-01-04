@@ -135,9 +135,14 @@
 **Date**: 2025-01-04
 **Description**: Configured Nginx as an API Gateway (`middleware/gateway`) to route traffic to Kernel (Mock) and Registry services.
 
+### ✅ Issue #61: Infrastructure: Production Dockerfile
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Refactored Dockerfiles for Registry, Gateway, and Mock Server to use multi-stage builds and non-root users for security and optimization.
+
 ## Next Recommended Issue
 
-**Issue #61: Infrastructure: Production Dockerfile** - Optimize Dockerfiles for production (multi-stage builds, non-root users).
+**Issue #62: Infrastructure: Kubernetes Manifests** - Create K8s deployment manifests for the microservices.
 
 ---
 *Last Updated: 2025-01-04*
