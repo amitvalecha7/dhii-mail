@@ -151,6 +151,15 @@ class AuthManager:
             if token_type not in self.token_lifetime:
                 raise ValueError(f"Invalid token type: {token_type}")
             
+            # Verify user exists
+            user_exists = self.db.execute_query(
+                "SELECT id FROM users WHERE id = ?",
+                (user_id,)
+            )
+            if not user_exists:
+                logger.error(f"Cannot create token: User {user_id} does not exist")
+                return None
+            
             # Create token payload
             now = datetime.now(timezone.utc)
             expires_at = now + self.token_lifetime[token_type]
@@ -344,8 +353,16 @@ class AuthManager:
         }
         return role_scopes.get(role, ['read'])
 
-# Global auth manager instance - will be set by main.py
+# Global auth manager instance - will be set by main.py or initialized with default
 auth_manager = None
+
+def get_auth_manager() -> AuthManager:
+    """Get the global authentication manager instance, initializing if necessary."""
+    global auth_manager
+    if auth_manager is None:
+        # Initialize with default secret key if not set by main.py
+        auth_manager = AuthManager(secret_key="dhii-mail-secret-key-for-development")
+    return auth_manager
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> Dict[str, Any]:
     """FastAPI dependency to get current user from JWT token."""
@@ -354,9 +371,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
     
     from fastapi import HTTPException, status
     
-    # Ensure auth_manager is initialized
-    if auth_manager is None:
-        raise RuntimeError("AuthManager not initialized. Make sure main.py is imported first.")
+    # Get auth_manager (will initialize if necessary)
+    manager = get_auth_manager()
     
     token = credentials.credentials
     if not token:
@@ -366,7 +382,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = auth_manager.verify_token(token, 'access')
+    user = manager.verify_token(token, 'access')
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -378,7 +394,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
 
 def get_auth() -> AuthManager:
     """Get the global authentication manager instance."""
-    return auth_manager
+    return get_auth_manager()
 
 def init_auth(secret_key: Optional[str] = None) -> AuthManager:
     """Initialize a new authentication manager."""
