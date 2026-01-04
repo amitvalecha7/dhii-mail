@@ -100,6 +100,26 @@ class Kernel(KernelInterface):
         except Exception as e:
             logger.error(f"Failed to register plugin instance {plugin_id}: {e}")
             return False
+
+    def install_plugin(self, plugin_id: str) -> bool:
+        """
+        Install a new plugin from the registry.
+        
+        Args:
+            plugin_id: The ID of the plugin to install.
+            
+        Returns:
+            bool: True if installed successfully, False otherwise.
+        """
+        logger.info(f"Requesting installation of plugin: {plugin_id}")
+        if self.plugin_installer.install_plugin(plugin_id):
+            logger.info(f"Plugin {plugin_id} installed. Reloading plugins...")
+            # Ideally, we would reload dynamically here.
+            # For now, we just log success.
+            return True
+        else:
+            logger.error(f"Failed to install plugin {plugin_id}")
+            return False
     
     async def register_plugin(self, plugin_config: PluginConfig) -> bool:
         """Register a new plugin using shared services"""

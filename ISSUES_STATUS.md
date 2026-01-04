@@ -150,9 +150,14 @@
 **Date**: 2025-01-04
 **Description**: Consolidated architectural decisions, component diagrams, and security models into `ARCHITECTURE.md`.
 
+### ✅ Issue #64: Feature: Plugin Installation Logic
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Implemented `PluginInstaller` in the Kernel to fetch, validate, and install plugins from the Registry. Added unit tests.
+
 ## Next Recommended Issue
 
-**Issue #64: Feature: Plugin Installation Logic** - Implement the core logic in the Kernel to fetch, validate, and install plugins from the Registry.
+**Issue #65: Feature: Plugin Runtime Environment** - Implement the sandboxed execution environment (Glass Wall) for loading and running installed plugins.
 
 ---
 *Last Updated: 2025-01-04*
