@@ -110,9 +110,14 @@
 **Date**: 2025-01-04
 **Description**: Defined data handling policies, local-first architecture, and the "Glass Wall" isolation model in `SECURITY_MANIFESTO.md`.
 
+### ✅ Issue #56: Strategy: Developer Guide & Contributing
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Created `CONTRIBUTING.md` with setup instructions, workflow guidelines, and architectural links.
+
 ## Next Recommended Issue
 
-**Issue #56: Strategy: Developer Guide & Contributing** - Lower the barrier to entry for new contributors.
+**Issue #57: Infrastructure: Local Development Environment** - Set up Docker/DevContainer and a mock server for rapid iteration.
 
 ---
 *Last Updated: 2025-01-04*
