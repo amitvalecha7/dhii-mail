@@ -35,6 +35,17 @@ services:
     environment:
       FLASK_ENV: development
 
+  # Plugin Registry Service
+  plugin-registry:
+    build:
+      context: middleware/registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./middleware/registry:/app
+    environment:
+      FLASK_ENV: development
+
 volumes:
   postgres_data:
   redis_data:

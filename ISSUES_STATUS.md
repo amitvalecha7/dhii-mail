@@ -125,9 +125,14 @@
 **Date**: 2025-01-04
 **Description**: Configured GitHub Actions workflow (`.github/workflows/ci.yml`) for Python linting/testing, Frontend build, and Docker verification.
 
+### ✅ Issue #59: Infrastructure: Plugin Registry
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Implemented a lightweight Plugin Registry service (`middleware/registry`) and added it to `docker-compose.yml`.
+
 ## Next Recommended Issue
 
-**Issue #59: Infrastructure: Plugin Registry** - Create a simple registry service to host and serve plugin manifests.
+**Issue #60: Infrastructure: API Gateway** - Set up Nginx or a lightweight gateway to route requests between Kernel, Registry, and Frontend.
 
 ---
 *Last Updated: 2025-01-04*
