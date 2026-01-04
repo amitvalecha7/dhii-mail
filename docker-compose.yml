@@ -46,6 +46,16 @@ services:
     environment:
       FLASK_ENV: development
 
+  # API Gateway
+  api-gateway:
+    build:
+      context: middleware/gateway
+    ports:
+      - "8080:80"
+    depends_on:
+      - mock-orchestrator
+      - plugin-registry
+
 volumes:
   postgres_data:
   redis_data:

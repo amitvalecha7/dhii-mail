@@ -130,9 +130,14 @@
 **Date**: 2025-01-04
 **Description**: Implemented a lightweight Plugin Registry service (`middleware/registry`) and added it to `docker-compose.yml`.
 
+### ✅ Issue #60: Infrastructure: API Gateway
+**Status**: COMPLETED ✅
+**Date**: 2025-01-04
+**Description**: Configured Nginx as an API Gateway (`middleware/gateway`) to route traffic to Kernel (Mock) and Registry services.
+
 ## Next Recommended Issue
 
-**Issue #60: Infrastructure: API Gateway** - Set up Nginx or a lightweight gateway to route requests between Kernel, Registry, and Frontend.
+**Issue #61: Infrastructure: Production Dockerfile** - Optimize Dockerfiles for production (multi-stage builds, non-root users).
 
 ---
 *Last Updated: 2025-01-04*
