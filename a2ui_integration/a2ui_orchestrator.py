@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 
 from .a2ui_components_extended import A2UIComponents, A2UITemplates
-from .a2ui_state_machine import A2UIStateMachine, UIState
+from .a2ui_state_machine import A2UIStateMachine, UIState, StateTransition
 from .a2ui_command_palette import A2UICommandPalette
 from .a2ui_appshell import A2UIAppShell
 from .data_structures import ComponentGraph
@@ -37,8 +37,20 @@ class A2UIOrchestrator:
         if current_state != state:
             success = self.state_machine.transition_to(state, "render_ui", context)
             if not success:
-                logger.warning(f"State transition failed, staying in current state: {self.state_machine.get_current_state().value}")
-                state = self.state_machine.get_current_state()
+                # For API-driven transitions, allow direct state setting for navigation
+                # This handles cases where users navigate directly to specific views via URL
+                logger.info(f"API-driven state change: {current_state.value} -> {state.value}")
+                # Create a direct transition record
+                transition = StateTransition(
+                    from_state=current_state,
+                    to_state=state,
+                    action="api_navigation",
+                    context=context or {},
+                    timestamp=datetime.now(),
+                    user_id=None
+                )
+                self.state_machine.state_history.append(transition)
+                self.state_machine.current_state = state
         
         logger.info(f"Rendering A2UI for state: {state.value}")
         
