@@ -54,13 +54,20 @@ async def get_dashboard(user_id: Optional[str] = None):
     try:
         context = {
             "name": "User",
-            "unread_count": 5,
-            "today_meetings": 3,
-            "pending_tasks": 7,
+            "stats": {
+                "meetings": 3,
+                "pendingEmails": 5,
+                "activeVideo": 2,
+                "campaigns": 1
+            },
             "recent_activity": [
                 "Meeting with team at 2 PM",
                 "Email from John about project",
                 "Task completed: Review documents"
+            ],
+            "upcoming_events": [
+                "Team Sync - 14:00",
+                "Client Call - 16:00"
             ]
         }
         
