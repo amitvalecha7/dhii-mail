@@ -1,0 +1,8 @@
+{
+  "name": "WorkOS Conversational Dashboard",
+  "description": "A high-fidelity conversational operating system for work, featuring integrated mail, tasks, and meetings with an AI-first interface.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

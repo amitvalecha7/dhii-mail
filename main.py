@@ -114,9 +114,16 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Exception Catching Middleware
 # Ensures that exceptions are caught and handled by the global handler,
 # even when using TestClient or when ServerErrorMiddleware is bypassed.
-@app.middleware("http")
-async def catch_exceptions_middleware(request: Request, call_next):
-    try:
-        return await call_next(request)
     except Exception as exc:
         return await global_exception_handler(request, exc)
+
+if __name__ == "__main__":
+    import uvicorn
+    import argparse
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8005)
+    parser.add_argument("--host", type=str, default="0.0.0.0")
+    args = parser.parse_args()
+    
+    uvicorn.run("main:app", host=args.host, port=args.port, reload=True)

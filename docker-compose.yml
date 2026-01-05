@@ -35,6 +35,35 @@ services:
     environment:
       FLASK_ENV: development
 
+  # Main Application Kernel
+  kernel:
+    build: .
+    ports:
+      - "8005:8005"
+    depends_on:
+      - db
+      - redis
+      - plugin-registry
+    environment:
+      - DATABASE_URL=postgresql://dhii:dhii_password@db:5432/dhii_mail
+      - REDIS_URL=redis://redis:6379/0
+      - REGISTRY_URL=http://plugin-registry:5000
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/a2ui_lit
+
+  # Web Frontend (AppShell)
+  frontend:
+    build:
+      context: a2ui_integration/client
+    ports:
+      - "3001:3001"
+    environment:
+      - API_TARGET=http://kernel:8005
+    depends_on:
+      - kernel
+
   # Plugin Registry Service
   plugin-registry:
     build:

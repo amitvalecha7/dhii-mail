@@ -3,6 +3,7 @@ import { LitElement, html, css } from 'lit';
 import { A2UIClient } from '@a2ui/lit';
 import { A2AClient } from '@a2a-js/sdk';
 import { frontendConfig } from './config.js';
+import './components/MeetingDashboard.js'; // Register Custom Components
 
 export class MeetingAssistantApp extends LitElement {
     static properties = {
@@ -173,7 +174,7 @@ export class MeetingAssistantApp extends LitElement {
         this.connectionStatus = 'Disconnected';
         this.chatMessages = [];
         this.userEmail = '';
-        
+
         this.a2uiClient = null;
         this.a2aClient = null;
         this.websocket = null;
@@ -184,7 +185,7 @@ export class MeetingAssistantApp extends LitElement {
         // Initialize logic after DOM is ready
         const userConfig = frontendConfig.getUserConfig();
         this.userEmail = userConfig.email;
-        
+
         await this.initializeClient();
         this.connectWebSocket();
     }
@@ -193,7 +194,7 @@ export class MeetingAssistantApp extends LitElement {
         try {
             // Initialize A2UI client attached to the element in shadow DOM
             const rootElement = this.shadowRoot.getElementById('a2ui-root');
-            
+
             this.a2uiClient = new A2UIClient({
                 rootElement: rootElement,
                 defaultStyles: {
@@ -216,7 +217,7 @@ export class MeetingAssistantApp extends LitElement {
 
             // Load initial data
             await this.loadInitialMeetings();
-            
+
         } catch (error) {
             console.error('Error initializing client:', error);
             this.errorMessage = 'Failed to initialize meeting assistant';
@@ -226,26 +227,28 @@ export class MeetingAssistantApp extends LitElement {
     async loadInitialMeetings() {
         try {
             this.isLoading = true;
-            
-            const [calendarResponse, emailResponse, videoResponse, marketingResponse] = await Promise.all([
-                fetch('/calendar/events'),
-                fetch('/email/inbox'), 
-                fetch('/video/meetings'),
-                fetch('/marketing/campaigns')
+
+            const [calendarResponse, emailResponse] = await Promise.all([
+                fetch('/api/a2ui/calendar'),
+                fetch('/api/a2ui/email/inbox')
             ]);
-            
+
+            // Allow 404s for others to prevent crash
+            const videoResponse = { json: async () => ({ meetings: [] }) };
+            const marketingResponse = { json: async () => ({ campaigns: [] }) };
+
             const calendarData = await calendarResponse.json();
             const emailData = await emailResponse.json();
             const videoData = await videoResponse.json();
             const marketingData = await marketingResponse.json();
-            
+
             const a2uiComponents = this.createMeetingDashboard(
-                calendarData, 
-                emailData, 
-                videoData, 
+                calendarData,
+                emailData,
+                videoData,
                 marketingData
             );
-            
+
             await this.a2uiClient.render(a2uiComponents);
             this.isLoading = false;
         } catch (error) {
@@ -297,7 +300,7 @@ export class MeetingAssistantApp extends LitElement {
 
         try {
             this.isLoading = true;
-            
+
             const response = await fetch('/api/a2ui/chat', {
                 method: 'POST',
                 headers: {
@@ -311,11 +314,11 @@ export class MeetingAssistantApp extends LitElement {
             });
 
             const aiData = await response.json();
-            
+
             if (aiData.a2ui_json) {
                 const components = JSON.parse(aiData.a2ui_json);
                 await this.a2uiClient.render(components);
-                
+
                 const textResponse = this.extractTextFromA2UI(aiData.a2ui_json);
                 if (textResponse) {
                     this.chatMessages = [...this.chatMessages, { text: textResponse, type: 'assistant' }];
@@ -323,7 +326,7 @@ export class MeetingAssistantApp extends LitElement {
             } else {
                 this.chatMessages = [...this.chatMessages, { text: aiData.response || 'Processed', type: 'assistant' }];
             }
-            
+
             this.isLoading = false;
         } catch (error) {
             console.error('Error sending message:', error);
@@ -351,18 +354,45 @@ export class MeetingAssistantApp extends LitElement {
 
     async handleA2UIAction(action) {
         console.log('A2UI Action:', action);
-        // Implement action handling logic (abbreviated for brevity, can copy from main.js)
-        // For now, simple refresh
-        if (action.name === 'refresh_dashboard') {
-            await this.loadInitialMeetings();
-        } else {
-             // Default to sending to AI
-             if (action.data && action.data.query) {
-                 // Simulate user typing
-                 const input = this.shadowRoot.getElementById('message-input');
-                 input.value = action.data.query;
-                 this.sendMessage();
-             }
+
+        // Map local button clicks to backend actions
+        // Sidebar buttons send {name: 'check_email'} -> map to 'navigate_email_inbox'
+        // Or if standard A2UI buttons, they send {name: 'navigate_email_inbox'} directly
+
+        let backendAction = action.name;
+        if (action.name === 'check_email') backendAction = 'navigate_email_inbox';
+        if (action.name === 'view_calendar') backendAction = 'navigate_calendar';
+        if (action.name === 'refresh_dashboard') backendAction = 'navigate_dashboard';
+
+        try {
+            this.isLoading = true;
+            const response = await fetch('/api/a2ui/ui/action', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.getAuthToken()}`
+                },
+                body: JSON.stringify({
+                    action: backendAction,
+                    data: action.data || {},
+                    state: 'current_state' // TODO: Track state if needed
+                })
+            });
+
+            if (!response.ok) throw new Error('Action failed');
+
+            const result = await response.json();
+
+            // Backend returns { component: ..., state_info: ... }
+            if (result.component) {
+                await this.a2uiClient.render(result.component);
+            }
+
+            this.isLoading = false;
+        } catch (error) {
+            console.error('Error handling action:', error);
+            this.errorMessage = 'Failed to perform action';
+            this.isLoading = false;
         }
     }
 
@@ -370,8 +400,8 @@ export class MeetingAssistantApp extends LitElement {
         try {
             this.websocket = new WebSocket(`ws://localhost:8005/ws/a2ui/${this.userEmail}`);
             this.websocket.onopen = () => { this.connectionStatus = 'Connected'; };
-            this.websocket.onclose = () => { 
-                this.connectionStatus = 'Disconnected'; 
+            this.websocket.onclose = () => {
+                this.connectionStatus = 'Disconnected';
                 setTimeout(() => this.connectWebSocket(), 3000);
             };
         } catch (e) {
@@ -390,8 +420,8 @@ export class MeetingAssistantApp extends LitElement {
                     <h2 style="color: white; margin-bottom: 20px;">dhii Mail</h2>
                     <nav>
                         <button class="nav-item" @click=${this.loadInitialMeetings}>Dashboard</button>
-                        <button class="nav-item" @click=${() => this.handleA2UIAction({name: 'check_email'})}>Email</button>
-                        <button class="nav-item" @click=${() => this.handleA2UIAction({name: 'view_calendar'})}>Calendar</button>
+                        <button class="nav-item" @click=${() => this.handleA2UIAction({ name: 'check_email' })}>Email</button>
+                        <button class="nav-item" @click=${() => this.handleA2UIAction({ name: 'view_calendar' })}>Calendar</button>
                     </nav>
                 </aside>
 

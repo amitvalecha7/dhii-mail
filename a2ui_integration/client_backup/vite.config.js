@@ -6,11 +6,11 @@ export default defineConfig({
     port: 3001,
     proxy: {
       '/api': {
-        target: 'http://localhost:8005',
+        target: process.env.API_TARGET || 'http://localhost:8005',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:8005',
+        target: process.env.API_TARGET ? process.env.API_TARGET.replace('http', 'ws') : 'ws://localhost:8005',
         ws: true,
         changeOrigin: true,
       }
