@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { User, AppScreen, ChatMessage } from '../types';
-import { sendMessageToGemini } from '../services/geminiService';
+import { kernelBridge } from '../services/kernelBridge';
 
 interface WorkspaceShellProps {
   user: User;

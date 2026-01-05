@@ -32,13 +32,19 @@ class UIResponse(BaseModel):
     component: Dict[str, Any]
     state_info: Dict[str, Any]
     timestamp: str
+    data: Optional[Dict[str, Any]] = {}
 
-def create_ui_response_from_orchestrator(ui_data: Dict[str, Any]) -> UIResponse:
+class ChatRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+def create_ui_response_from_orchestrator(ui_data: Dict[str, Any], data: Dict[str, Any] = None) -> UIResponse:
     """Convert orchestrator output to UIResponse format"""
     return UIResponse(
         component=ui_data.get("component", {}),
         state_info=ui_data.get("state_info", {}),
-        timestamp=datetime.now().isoformat()
+        timestamp=datetime.now().isoformat(),
+        data=data or {}
     )
 
 # All-A2UI Dashboard Routes
@@ -106,7 +112,7 @@ async def get_email_inbox():
         }
         
         ui_data = orchestrator.render_ui(UIState.EMAIL_INBOX, context)
-        return create_ui_response_from_orchestrator(ui_data)
+        return create_ui_response_from_orchestrator(ui_data, data=context)
     except Exception as e:
         logger.error(f"Error rendering email inbox: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -186,11 +192,21 @@ async def get_tasks():
                 {"id": "1", "title": "Review documents", "status": "To Do"},
                 {"id": "2", "title": "Update proposal", "status": "In Progress"},
                 {"id": "3", "title": "Send report", "status": "Done"}
+            ],
+            "critical_path": {
+                "title": "Financial Audit Approval",
+                "due_in": "2 hours",
+                "description": "Review the Q3 reconciliation reports from the accounting agent before the Board sync."
+            },
+            "scheduled_jobs": [
+                {"title": "Update CI/CD Pipeline", "label": "Engineering", "icon": "settings_input_component"},
+                {"title": "Sarah - Design Review", "label": "Meeting", "icon": "brush"},
+                {"title": "Weekly Recap Draft", "label": "Admin", "icon": "edit_note"}
             ]
         }
         
         ui_data = orchestrator.render_ui(UIState.TASK_BOARD, context)
-        return create_ui_response_from_orchestrator(ui_data)
+        return create_ui_response_from_orchestrator(ui_data, data=context)
     except Exception as e:
         logger.error(f"Error rendering tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -198,24 +214,9 @@ async def get_tasks():
 # Analytics A2UI Routes
 @router.get("/analytics", response_model=UIResponse)
 async def get_analytics():
-    """Get A2UI analytics dashboard"""
+    """Get A2UI analytics interface"""
     try:
-        context = {
-            "email_analytics": [
-                {"label": "Sent", "value": 45},
-                {"label": "Received", "value": 67}
-            ],
-            "meeting_analytics": [
-                {"label": "Completed", "value": 12},
-                {"label": "Scheduled", "value": 8}
-            ],
-            "task_analytics": [
-                {"label": "Completed", "value": 23},
-                {"label": "Pending", "value": 15}
-            ]
-        }
-        
-        ui_data = orchestrator.render_ui(UIState.ANALYTICS, context)
+        ui_data = orchestrator.render_ui(UIState.ANALYTICS)
         return create_ui_response_from_orchestrator(ui_data)
     except Exception as e:
         logger.error(f"Error rendering analytics: {e}")
@@ -232,108 +233,26 @@ async def get_settings():
         logger.error(f"Error rendering settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Chat A2UI Routes
-@router.get("/chat", response_model=UIResponse)
-async def get_chat():
-    """Get A2UI chat interface"""
+# Chat Route
+@router.post("/chat")
+async def chat_endpoint(request: ChatRequest):
+    """Handle chat messages from the frontend"""
     try:
-        context = {
-            "chat_messages": [
-                {"role": "user", "content": "Hello, can you help me schedule a meeting?"},
-                {"role": "assistant", "content": "I'd be happy to help you schedule a meeting. What date and time would work for you?"}
-            ]
-        }
+        # TODO: Integrate with actual LLM/Kernel logic
+        # For now, we return a mocked response to acknowledge the neural link
         
-        ui_data = orchestrator.render_ui(UIState.CHAT, context)
-        return create_ui_response_from_orchestrator(ui_data)
-    except Exception as e:
-        logger.error(f"Error rendering chat: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Component Library Routes
-@router.get("/components")
-async def get_component_library():
-    """Get available A2UI components"""
-    try:
-        components = A2UIComponents()
-        return {
-            "components": [
-                "Card", "Form", "Table", "Chart", "Modal", 
-                "List", "Button", "Input", "TextArea", "Select",
-                "DatePicker", "TimePicker", "FileUpload", "Toggle",
-                "ProgressBar", "Badge", "Alert", "Navigation",
-                "Layout", "Toolbar", "Dropdown", "Calendar", "Chat"
-            ],
-            "templates": [
-                "Email Dashboard", "Meeting Dashboard", "Calendar View",
-                "Settings Panel", "Analytics Dashboard", "Marketing Dashboard"
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error getting component library: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Main A2UI Interface Route
-@router.get("/interface")
-async def get_a2ui_interface():
-    """Get complete A2UI interface"""
-    try:
-        # Start with dashboard as default
-        return await get_dashboard()
-    except Exception as e:
-        logger.error(f"Error rendering A2UI interface: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Action endpoint for handling UI interactions
-@router.post("/ui/action")
-async def handle_ui_action(request: Dict[str, Any]):
-    """Handle UI actions from the A2UI interface"""
-    try:
-        state = request.get("state", "dashboard")
-        action = request.get("action")
-        data = request.get("data", {})
+        response_text = f"Received: {request.message}. Neural link active. [Kernel Placeholder]"
         
-        logger.info(f"Handling action: {action} in state: {state}")
-        
-        # Process action through orchestrator
-        result = orchestrator.handle_action(action, data)
-        
-        # Return updated UI state
-        if result.get("navigate"):
-            # Navigate to new state
-            new_state = result["navigate"]
-            return await get_ui_state(new_state)
-        else:
-            # Return current state with updates
-            return await get_ui_state(state)
+        # If the message contains certain keywords, we could trigger UI actions
+        # This simulates the "intelligent" aspect
+        if "dashboard" in request.message.lower():
+            response_text = "Navigating to dashboard..."
+            # In a real implementation, this would return a UI action to change state
             
+        return {
+            "response": response_text,
+            "session_id": request.session_id or "default_session"
+        }
     except Exception as e:
-        logger.error(f"Error handling UI action: {e}")
+        logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# Helper function to get UI state
-async def get_ui_state(state: str):
-    """Get UI state by name"""
-    state_map = {
-        "dashboard": get_dashboard,
-        "email_inbox": get_email_inbox,
-        "calendar": get_calendar,
-        "meetings": get_meetings,
-        "tasks": get_tasks,
-        "analytics": get_analytics,
-        "settings": get_settings,
-        "chat": get_chat
-    }
-    
-    # Map state names to functions
-    if state in state_map:
-        return await state_map[state]()
-    else:
-        # Default to dashboard
-        return await get_dashboard()
-
-# Health check
-@router.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "a2ui", "timestamp": datetime.now().isoformat()}
