@@ -10,17 +10,24 @@ class A2UIComponents:
     """Extended A2UI component library"""
     
     @staticmethod
-    def create_card(title: str, content: str, actions: List[Dict[str, Any]] = None, variant: str = None, status: str = None) -> Dict[str, Any]:
-        """Create a card component with title, content, and actions"""
+    def create_card(title: str, content: str, actions: List[Dict[str, Any]] = None, variant: str = None, status: str = None, badges: List[Dict[str, Any]] = None, ai_summary: str = None) -> Dict[str, Any]:
+        """Create a card component with title, content, actions, and intelligence features"""
         card_props = {
             "title": {"literalString": title},
             "content": {"literalString": content},
             "actions": actions or []
         }
+        
+        # Add AI summary if provided
+        if ai_summary:
+            card_props["content"]["literalString"] = f"{content}\n\n🤖 **AI Summary**: {ai_summary}"
+        
         if variant:
             card_props["variant"] = variant
         if status:
             card_props["status"] = status
+        if badges:
+            card_props["badges"] = badges
             
         return {
             "component": {
