@@ -64,6 +64,25 @@ async def health_check():
 from a2ui_integration.a2ui_router import router as a2ui_router
 app.include_router(a2ui_router)
 
+# Serve React Frontend (Static Files)
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Path to the React build directory
+# In development/local, it might be here:
+react_dist_path = os.path.join(os.path.dirname(__file__), "a2ui_integration/client/dist")
+
+# In Docker/Production, we might copy it to a simpler path, e.g., /app/static
+if os.path.exists("/app/static"):
+    react_dist_path = "/app/static"
+
+if os.path.exists(react_dist_path):
+    # Mount the static files
+    app.mount("/", StaticFiles(directory=react_dist_path, html=True), name="static")
+    logger.info(f"Serving React frontend from {react_dist_path}")
+else:
+    logger.warning(f"React build directory not found at {react_dist_path}. Frontend will not be served.")
+
 
 # Global Exception Handler
 @app.exception_handler(Exception)
