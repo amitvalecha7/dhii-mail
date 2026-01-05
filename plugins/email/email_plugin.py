@@ -183,9 +183,16 @@ class EmailPlugin(DomainModule):
                 password_encrypted TEXT NOT NULL,
                 use_ssl BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_connected TIMESTAMP
+                last_connected TIMESTAMP,
+                last_synced_uid INTEGER DEFAULT 0
             )
         ''')
+        
+        # Migration for existing tables
+        try:
+            cursor.execute('ALTER TABLE email_accounts ADD COLUMN last_synced_uid INTEGER DEFAULT 0')
+        except:
+            pass # Column likely exists
         
         # Sent emails table
         cursor.execute('''
@@ -233,6 +240,9 @@ class EmailPlugin(DomainModule):
         """Initialize the email plugin"""
         try:
             logger.info("Initializing email plugin")
+            from .services.sync_service import EmailSyncService
+            self.sync_service = EmailSyncService(self.db_path)
+            await self.sync_service.start()
             return True
         except Exception as e:
             logger.error(f"Failed to initialize email plugin: {e}")
@@ -241,6 +251,10 @@ class EmailPlugin(DomainModule):
     async def shutdown(self) -> bool:
         """Shutdown the email plugin"""
         try:
+            # Stop sync service
+            if hasattr(self, 'sync_service'):
+                await self.sync_service.stop()
+
             # Close all connections
             for conn in self._imap_connections.values():
                 try:
