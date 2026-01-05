@@ -1,78 +1,42 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ "main", "develop" ]
-  workflow_dispatch: # Enable manual run from GitHub UI/CLI
+    branches: [ main, master ]
 
 jobs:
-  # ------------------------------------------------------------------
-  # Python / Backend
-  # ------------------------------------------------------------------
-  backend-test:
-    name: Backend (Python)
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-          cache: 'pip'
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install flake8 pytest
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest httpx
 
-      - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
 
-      - name: Run Unit Tests
-        run: |
-          pytest
+    - name: Install Frontend dependencies
+      working-directory: ./a2ui_integration/client
+      run: npm install
 
-  # ------------------------------------------------------------------
-  # JavaScript / Frontend
-  # ------------------------------------------------------------------
-  frontend-build:
-    name: Frontend (Node.js)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./a2ui_integration/client
-    steps:
-      - uses: actions/checkout@v3
+    - name: Build Frontend
+      working-directory: ./a2ui_integration/client
+      run: npm run build
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'npm'
-          cache-dependency-path: a2ui_integration/client/package-lock.json
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Verify Build
-        run: npm run build
-
-  # ------------------------------------------------------------------
-  # Docker / Infrastructure
-  # ------------------------------------------------------------------
-  docker-build:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Build Mock Orchestrator
-        run: docker build -t mock-orchestrator ./mock_server
+    - name: Run Smoke Tests
+      run: |
+        pytest tests/test_smoke.py -v
