@@ -1,0 +1,16 @@
+{
+    "id": "holo-meet",
+    "name": "Holo-Meet",
+    "version": "1.0.0",
+    "description": "Next-gen meeting management with Liquid Glass UI",
+    "entry_point": "plugin.py",
+    "class_name": "MeetingPlugin",
+    "capabilities": [
+        "meetings"
+    ],
+    "permissions": [
+        "calendar.read",
+        "calendar.write",
+        "notifications.push"
+    ]
+}
