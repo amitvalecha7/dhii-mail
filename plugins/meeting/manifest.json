@@ -1,0 +1,22 @@
+{
+  "id": "holo-meet",
+  "name": "Holo-Meet",
+  "version": "1.0.0",
+  "description": "Next-gen meeting management with LiquidGlass UI",
+  "author": "Dhii-Mail Core Team",
+  "capabilities": [
+    "meeting_create",
+    "meeting_update",
+    "meeting_list",
+    "meeting_delete",
+    "render_meeting_list",
+    "render_meeting_detail",
+    "render_meeting_book"
+  ],
+  "permissions": [
+    "storage.read",
+    "storage.write",
+    "notifications.push"
+  ],
+  "entry_point": "__init__.py"
+}
