@@ -1,0 +1,47 @@
+66	OPEN	Issue #35: Hyper-Mail (Core Email Plugin)	enhancement	2026-01-04T23:20:36Z
+64	OPEN	Feature: Plugin Installation Logic	status/needs-review	2026-01-04T23:04:30Z
+63	OPEN	Documentation: Architecture Overview	status/needs-review	2026-01-04T23:02:26Z
+62	OPEN	Infrastructure: Kubernetes Manifests	status/needs-review	2026-01-04T23:01:35Z
+61	OPEN	Infrastructure: Production Dockerfile	status/needs-review	2026-01-04T23:00:33Z
+60	OPEN	Infrastructure: API Gateway	status/needs-review	2026-01-04T22:58:45Z
+59	OPEN	Infrastructure: Plugin Registry	status/needs-review	2026-01-04T22:57:19Z
+58	OPEN	Infrastructure: CI/CD Pipeline	status/needs-review	2026-01-04T22:45:23Z
+57	OPEN	Strategy: Master Test Strategy	priority/p2, status/needs-review, area/qa, role/qa	2026-01-04T22:36:58Z
+56	OPEN	Strategy: Security & Compliance Framework	area/security, priority/p1, status/needs-review, role/security	2026-01-04T22:35:15Z
+55	OPEN	Strategy: Design System Tokens & Flows	priority/p1, status/needs-review, area/design, role/ux	2026-01-04T22:33:55Z
+54	OPEN	Strategy: Agentic Component Factory (EXPERIMENTAL)	priority/p3, status/needs-review, area/architecture, role/architect, experimental	2026-01-04T22:32:53Z
+53	OPEN	Strategy: Orchestrator API Contract	priority/p1, status/needs-review, area/architecture, role/architect	2026-01-04T22:31:41Z
+51	OPEN	Strategy: A2UI Schema Contract	status/needs-review, priority/p0, area/architecture, role/architect	2026-01-04T22:31:32Z
+50	OPEN	Strategy: Product Vision & Roadmap	status/needs-review, priority/p0, area/strategy, role/product-owner	2026-01-04T22:31:31Z
+49	OPEN	Plugin: Dev-Hub	priority/p2, area/plugin, layer/dev	2026-01-04T20:51:30Z
+48	OPEN	Plugin: Brand-Identity Manager	priority/p3, area/plugin, layer/creative	2026-01-04T20:50:58Z
+47	OPEN	Plugin: Pixel-Studio	priority/p3, area/plugin, layer/creative	2026-01-04T20:50:55Z
+46	OPEN	Plugin: Writer's Room	priority/p2, area/plugin, layer/creative	2026-01-04T20:51:04Z
+45	OPEN	Plugin: Sync-Chat (Internal)	priority/p2, area/plugin, layer/social	2026-01-04T20:51:07Z
+44	OPEN	Plugin: Dhii-Connect (Internal Network)	priority/p2, area/plugin, layer/social	2026-01-04T20:51:01Z
+43	OPEN	Plugin: Legal-Stack	priority/p2, area/plugin, layer/business	2026-01-04T20:50:34Z
+42	OPEN	Plugin: Project-Nexus	priority/p2, area/plugin, layer/business	2026-01-04T20:50:36Z
+41	OPEN	Plugin: Finance-Flow	priority/p2, area/plugin, layer/business	2026-01-04T20:50:40Z
+40	OPEN	Plugin: Deal-Flow (CRM)	priority/p1, area/plugin, layer/business	2026-01-04T20:50:38Z
+39	OPEN	Plugin: Enterprise-Chat (Teams/Slack)	priority/p2, area/plugin, layer/bridge	2026-01-04T20:50:15Z
+38	OPEN	Plugin: WhatsApp/Telegram Bridge	priority/p1, area/plugin, layer/bridge	2026-01-04T20:50:11Z
+37	OPEN	Plugin: Holo-Meet	priority/p1, area/plugin, layer/core	2026-01-04T20:50:10Z
+36	OPEN	Plugin: Chrono-Calendar	priority/p1, area/plugin, layer/core	2026-01-04T20:50:06Z
+33	OPEN	Align CORS and security configuration with SECURITY/README	type/bug, area/security, priority/p1	2026-01-04T19:39:28Z
+32	OPEN	Align A2UI router response shape with orchestrator contract in a2ui_router_updated.py	type/bug, area/a2ui-router, priority/p0	2026-01-04T19:39:24Z
+31	OPEN	Unify AuthManager usage and token handling between main.py and auth.py	type/bug, area/security, status/needs-review, priority/p0	2026-01-04T20:04:22Z
+30	OPEN	Implement Database Persistence for Marketing Manager	type/bug, area/domain-mail, priority/p1	2026-01-04T19:38:33Z
+29	OPEN	Consolidate AI Agents (Deprecate ai_engine.py)	type/refactor, area/a2ui-router, priority/p2	2026-01-04T19:38:39Z
+28	OPEN	Implement Tool Registry Pattern for Agent Extensibility	type/refactor, area/state-machine, priority/p2	2026-01-04T19:38:36Z
+27	OPEN	Implement Streaming Transport for A2UI	type/feature, area/a2ui-router, priority/p1	2026-01-04T19:38:34Z
+26	OPEN	Replace Custom Frontend Client with Official @a2ui/lit Renderer	type/feature, area/shell, status/needs-review, priority/p0	2026-01-04T21:55:55Z
+25	OPEN	Refactor A2UI Orchestrator to Adjacency List Model (A2UI Standard)	type/refactor, area/a2ui-router, status/needs-review, priority/p0	2026-01-04T21:55:52Z
+23	OPEN	Major Refactor: Core Kernel and Plugin Migration	type/refactor, status/needs-review, area/core, priority/p0	2026-01-04T21:55:57Z
+19	OPEN	Implement 'Liquid Glass' UI Theme & Layout	type/feature, priority/p1, area/ui	2026-01-04T16:47:45Z
+15	OPEN	Implement Streaming Transport for A2UI	type/feature, area/a2ui-router, priority/p1, status/needs-review, priority/p0	2026-01-04T20:04:16Z
+9	OPEN	Implement Phase 25: autonomy levels and safety/audit framework	type/feature, area/state-machine, phase/25, priority/p2, status/needs-review	2026-01-02T00:12:48Z
+8	OPEN	Implement Phase 24: advanced A2UI interactions (keyboard, DnD, gestures)	type/feature, area/design-system, phase/24, priority/p2, status/needs-review	2026-01-02T00:12:46Z
+7	OPEN	Implement Phase 22: responsive A2UI design system and breakpoints	type/feature, area/design-system, phase/22, priority/p2, status/needs-review	2026-01-02T00:12:36Z
+6	OPEN	Complete Phase 21: domain shell components and meeting scheduler	type/feature, area/shell, phase/21, priority/p2, status/needs-review	2026-01-02T00:12:26Z
+5	OPEN	Complete Phase 20: implement missing advanced A2UI components	type/feature, area/component-catalog, phase/20, priority/p2, status/needs-review	2026-01-02T00:12:23Z
+4	OPEN	Complete Phase 19: resizable panes and BottomBar in AppShell	type/feature, area/shell, phase/19, priority/p2, status/needs-review	2026-01-02T00:12:09Z
