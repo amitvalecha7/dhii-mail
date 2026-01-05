@@ -81,6 +81,8 @@ class ComponentGraph:
         # Inject children into appropriate property based on type
         if node.type == "Layout":
             props["components"] = children_components
+        elif node.type == "Grid":
+            props["components"] = children_components
         # Add other container types if needed
         
         try:

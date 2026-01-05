@@ -10,34 +10,48 @@ class A2UIComponents:
     """Extended A2UI component library"""
     
     @staticmethod
-    def create_card(title: str, content: str, actions: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def create_card(title: str, content: str, actions: List[Dict[str, Any]] = None, variant: str = None, status: str = None) -> Dict[str, Any]:
         """Create a card component with title, content, and actions"""
+        card_props = {
+            "title": {"literalString": title},
+            "content": {"literalString": content},
+            "actions": actions or []
+        }
+        if variant:
+            card_props["variant"] = variant
+        if status:
+            card_props["status"] = status
+            
         return {
             "component": {
-                "Card": {
-                    "title": {"literalString": title},
-                    "content": {"literalString": content},
-                    "actions": actions or []
-                }
+                "Card": card_props
             }
         }
     
     @staticmethod
-    def create_form(fields: List[Dict[str, Any]], submit_action: str, form_id: str = "form") -> Dict[str, Any]:
+    def create_form(fields: List[Dict[str, Any]], submit_action: str, form_id: str = "form", title: str = None, submit_label: str = None, variant: str = None) -> Dict[str, Any]:
         """Create a form component with multiple field types"""
+        form_props = {
+            "id": form_id,
+            "fields": fields,
+            "submitAction": submit_action,
+            "styles": {
+                "padding": "16px",
+                "backgroundColor": "#ffffff",
+                "borderRadius": "8px",
+                "boxShadow": "0 2px 4px rgba(0,0,0,0.1)"
+            }
+        }
+        if title:
+            form_props["title"] = {"literalString": title}
+        if submit_label:
+            form_props["submitLabel"] = submit_label
+        if variant:
+            form_props["variant"] = variant
+            
         return {
             "component": {
-                "Form": {
-                    "id": form_id,
-                    "fields": fields,
-                    "submitAction": submit_action,
-                    "styles": {
-                        "padding": "16px",
-                        "backgroundColor": "#ffffff",
-                        "borderRadius": "8px",
-                        "boxShadow": "0 2px 4px rgba(0,0,0,0.1)"
-                    }
-                }
+                "Form": form_props
             }
         }
     
@@ -349,21 +363,42 @@ class A2UIComponents:
         }
     
     @staticmethod
-    def create_layout(orientation: str, components: List[Dict[str, Any]], layout_id: str = "layout") -> Dict[str, Any]:
+    def create_layout(orientation: str, components: List[Dict[str, Any]], layout_id: str = "layout", gap: str = None, padding: str = None) -> Dict[str, Any]:
         """Create a layout component for organizing other components"""
+        styles = {
+            "display": "flex" if orientation == "horizontal" else "block",
+            "flexDirection": "row" if orientation == "horizontal" else "column",
+            "gap": gap or "16px",
+            "marginTop": "16px"
+        }
+        if padding:
+            styles["padding"] = padding
+            
         return {
             "component": {
                 "Layout": {
                     "id": layout_id,
                     "orientation": orientation,
                     "components": components,
-                    "styles": {
-                        "display": "flex" if orientation == "horizontal" else "block",
-                        "flexDirection": "row" if orientation == "horizontal" else "column",
-                        "gap": "16px",
-                        "marginTop": "16px"
-                    }
+                    "styles": styles
                 }
+            }
+        }
+    
+    @staticmethod
+    def create_grid(columns: int, components: List[Dict[str, Any]] = None, title: str = None, gap: str = None) -> Dict[str, Any]:
+        """Create a grid layout component"""
+        grid_props = {
+            "columns": columns,
+            "components": components or [],
+            "gap": gap or "medium"
+        }
+        if title:
+            grid_props["title"] = {"literalString": title}
+            
+        return {
+            "component": {
+                "Grid": grid_props
             }
         }
     
