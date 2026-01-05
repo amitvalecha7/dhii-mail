@@ -44,7 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
+@app.get("/api")
 async def root():
     """Root endpoint to verify API is running."""
     logger.info("Root endpoint accessed")

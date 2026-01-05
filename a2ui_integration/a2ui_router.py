@@ -65,7 +65,7 @@ async def get_dashboard(user_id: Optional[str] = None):
         }
         
         ui_data = orchestrator.render_ui(UIState.DASHBOARD, context)
-        return create_ui_response_from_orchestrator(ui_data)
+        return create_ui_response_from_orchestrator(ui_data, data=context)
     except Exception as e:
         logger.error(f"Error rendering dashboard: {e}")
         raise HTTPException(status_code=500, detail=str(e))

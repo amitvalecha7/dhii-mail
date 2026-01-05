@@ -8,7 +8,9 @@ def test_health_check():
     """Verify the health check endpoint returns 200 OK."""
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert "timestamp" in data
 
 def test_frontend_serving():
     """Verify that the React frontend is being served at the root."""
