@@ -388,38 +388,65 @@ class A2UIOrchestrator:
         }
     
     def _render_meeting_list(self) -> Dict[str, Any]:
-        """Render meeting list view"""
+        """Render meeting list view (Grid of Glass Cards)"""
         graph = ComponentGraph()
         meetings = self.user_context.get("meetings", [])
         
-        meeting_table_id = graph.add_node("Table", {
-            "headers": ["Title", "Date", "Time", "Participants", "Status"],
-            "rows": [
-                [
-                    meeting.get("title", ""),
-                    meeting.get("date", ""),
-                    meeting.get("time", ""),
-                    ", ".join(meeting.get("participants", [])),
-                    meeting.get("status", "scheduled")
-                ]
-                for meeting in meetings
-            ],
-            "table_id": "meeting_list_table"
-        })
-        
+        # Action toolbar
         actions_id = graph.add_node("Toolbar", {
             "actions": [
-                {"label": "Book Meeting", "action": "meeting_book"},
-                {"label": "Refresh", "action": "meeting_refresh"}
+                {"label": "Book Meeting", "action": "meeting_book", "icon": "add"},
+                {"label": "Refresh", "action": "meeting_refresh", "icon": "refresh"}
             ]
         })
         
+        # Grid Layout for Meeting Cards
+        grid_id = graph.add_node("Grid", {
+            "columns": 3,
+            "gap": "medium",
+            "title": "Upcoming Meetings"
+        })
+
+        if not meetings:
+            empty_state_id = graph.add_node("Card", {
+                "title": "No Meetings",
+                "content": "You have no upcoming meetings scheduled.",
+                "variant": "glass"
+            })
+            graph.add_child(grid_id, empty_state_id)
+        else:
+            for meeting in meetings:
+                # Format card content
+                participants = meeting.get("participants", [])
+                participant_text = ", ".join(participants[:2])
+                if len(participants) > 2:
+                    participant_text += f" +{len(participants)-2} more"
+                    
+                card_content = (
+                    f"📅 {meeting.get('date', '')} at {meeting.get('time', '')}\n"
+                    f"⏱️ {meeting.get('duration', '')} mins\n"
+                    f"👥 {participant_text}"
+                )
+                
+                meeting_card_id = graph.add_node("Card", {
+                    "title": meeting.get("title", "Untitled"),
+                    "content": card_content,
+                    "variant": "glass",
+                    "status": meeting.get("status", "scheduled"),
+                    "actions": [
+                        {"label": "Details", "action": "view_meeting", "params": {"id": meeting.get("id")}},
+                        {"label": "Join", "action": "join_meeting", "params": {"id": meeting.get("id")}}
+                    ]
+                })
+                graph.add_child(grid_id, meeting_card_id)
+        
         # Main layout
         main_layout_id = graph.add_node("Layout", {
-            "orientation": "vertical"
+            "orientation": "vertical",
+            "padding": "medium"
         })
         graph.add_child(main_layout_id, actions_id)
-        graph.add_child(main_layout_id, meeting_table_id)
+        graph.add_child(main_layout_id, grid_id)
         
         graph.set_root(main_layout_id)
         
@@ -437,7 +464,7 @@ class A2UIOrchestrator:
         }
     
     def _render_meeting_detail(self) -> Dict[str, Any]:
-        """Render meeting detail view"""
+        """Render meeting detail view (Glass Card)"""
         graph = ComponentGraph()
         
         meeting_data = self.user_context.get("meeting_detail", {
@@ -451,10 +478,16 @@ class A2UIOrchestrator:
             "status": "scheduled"
         })
         
-        # Meeting header card
+        # Meeting header card (Glass Variant)
         header_card_id = graph.add_node("Card", {
             "title": meeting_data.get("title", "No Title"),
-            "content": f"Date: {meeting_data.get('date', 'Unknown')}\nTime: {meeting_data.get('time', 'Unknown')}\nDuration: {meeting_data.get('duration', 'Unknown')}\nLocation: {meeting_data.get('location', 'Unknown')}",
+            "content": (
+                f"📅 Date: {meeting_data.get('date', 'Unknown')}\n"
+                f"⏰ Time: {meeting_data.get('time', 'Unknown')} ({meeting_data.get('duration', '60')} mins)\n"
+                f"📍 Location: {meeting_data.get('location', 'Unknown')}\n"
+                f"📊 Status: {meeting_data.get('status', 'scheduled')}"
+            ),
+            "variant": "glass",
             "actions": [
                 {"label": "Join Meeting", "action": "join_meeting"},
                 {"label": "Reschedule", "action": "reschedule_meeting"},
@@ -465,38 +498,42 @@ class A2UIOrchestrator:
         # Participants list
         participants_card_id = graph.add_node("Card", {
             "title": "Participants",
-            "content": f"Total: {len(meeting_data.get('participants', []))}",
+            "content": "\n".join([f"• {p}" for p in meeting_data.get('participants', [])]),
+            "variant": "glass",
             "actions": [
                 {"label": "Add Participant", "action": "add_participant"},
-                {"label": "Send Update", "action": "send_meeting_update"}
+                {"label": "Email All", "action": "email_participants"}
             ]
         })
         
         # Agenda and details
         agenda_card_id = graph.add_node("Card", {
             "title": "Agenda",
-            "content": meeting_data.get("agenda", "No agenda available")
+            "content": meeting_data.get("agenda", "No agenda available"),
+            "variant": "glass"
         })
         
         # Action toolbar
         toolbar_id = graph.add_node("Toolbar", {
             "actions": [
-                {"label": "Back to Meetings", "action": "navigate_meeting_list"},
-                {"label": "Edit Details", "action": "edit_meeting"},
-                {"label": "Share Notes", "action": "share_meeting_notes"}
+                {"label": "Back to Meetings", "action": "navigate_meeting_list", "icon": "arrow_back"},
+                {"label": "Edit Details", "action": "edit_meeting", "icon": "edit"},
+                {"label": "Share Notes", "action": "share_meeting_notes", "icon": "share"}
             ]
         })
         
         # Bottom layout (Participants + Agenda)
         bottom_layout_id = graph.add_node("Layout", {
-            "orientation": "horizontal"
+            "orientation": "horizontal",
+            "gap": "medium"
         })
         graph.add_child(bottom_layout_id, participants_card_id)
         graph.add_child(bottom_layout_id, agenda_card_id)
         
         # Main layout
         main_layout_id = graph.add_node("Layout", {
-            "orientation": "vertical"
+            "orientation": "vertical",
+            "padding": "medium"
         })
         graph.add_child(main_layout_id, toolbar_id)
         graph.add_child(main_layout_id, header_card_id)
@@ -518,42 +555,62 @@ class A2UIOrchestrator:
         }
     
     def _render_meeting_book(self) -> Dict[str, Any]:
-        """Render meeting booking interface"""
+        """Render meeting booking interface (Form)"""
         graph = ComponentGraph()
         
+        # Action toolbar
+        toolbar_id = graph.add_node("Toolbar", {
+            "actions": [
+                {"label": "Cancel", "action": "navigate_meeting_list", "icon": "close"}
+            ]
+        })
+
         # Meeting details form
         form_fields = [
-            {"type": "text", "name": "title", "label": "Meeting Title", "required": True},
+            {"type": "text", "name": "title", "label": "Meeting Title", "required": True, "placeholder": "Weekly Sync"},
             {"type": "date", "name": "date", "label": "Date", "required": True},
             {"type": "time", "name": "start_time", "label": "Start Time", "required": True},
-            {"type": "time", "name": "end_time", "label": "End Time", "required": True},
-            {"type": "text", "name": "participants", "label": "Participants (comma-separated emails)", "required": True},
-            {"type": "textarea", "name": "agenda", "label": "Agenda", "required": False}
+            {"type": "number", "name": "duration", "label": "Duration (minutes)", "required": True, "default": 60},
+            {"type": "text", "name": "participants", "label": "Participants", "required": True, "placeholder": "email1@dhii.ai, email2@dhii.ai"},
+            {"type": "textarea", "name": "agenda", "label": "Agenda", "required": False, "rows": 4}
         ]
         
         booking_form_id = graph.add_node("Form", {
+            "title": "Book New Meeting",
             "fields": form_fields,
             "submit_action": "book_meeting",
-            "form_id": "meeting_book_form"
+            "submit_label": "Schedule Meeting",
+            "form_id": "meeting_book_form",
+            "variant": "glass"
         })
         
-        # Available time slots
+        # Available time slots (Sidebar helper)
         available_slots_id = graph.add_node("Card", {
-            "title": "Available Time Slots",
-            "content": "Select from available slots or propose custom time",
+            "title": "Suggested Times",
+            "content": "Based on team availability",
+            "variant": "glass",
             "actions": [
-                {"label": "10:00 AM", "action": "select_time_10am"},
-                {"label": "2:00 PM", "action": "select_time_2pm"},
-                {"label": "4:00 PM", "action": "select_time_4pm"}
+                {"label": "10:00 AM", "action": "select_time", "params": {"time": "10:00"}},
+                {"label": "2:00 PM", "action": "select_time", "params": {"time": "14:00"}},
+                {"label": "4:00 PM", "action": "select_time", "params": {"time": "16:00"}}
             ]
         })
         
+        # Content Layout
+        content_layout_id = graph.add_node("Layout", {
+            "orientation": "horizontal",
+            "gap": "medium"
+        })
+        graph.add_child(content_layout_id, booking_form_id)
+        graph.add_child(content_layout_id, available_slots_id)
+
         # Main layout
         main_layout_id = graph.add_node("Layout", {
-            "orientation": "horizontal"
+            "orientation": "vertical",
+            "padding": "medium"
         })
-        graph.add_child(main_layout_id, booking_form_id)
-        graph.add_child(main_layout_id, available_slots_id)
+        graph.add_child(main_layout_id, toolbar_id)
+        graph.add_child(main_layout_id, content_layout_id)
         
         graph.set_root(main_layout_id)
         

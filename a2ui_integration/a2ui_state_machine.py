@@ -86,7 +86,7 @@ class A2UIStateMachine:
                 UIState.CALENDAR_VIEW
             },
             UIState.MEETING_DETAIL: {
-                UIState.MEETING_LIST, UIState.CALENDAR_VIEW, UIState.DASHBOARD
+                UIState.MEETING_LIST, UIState.CALENDAR_VIEW, UIState.DASHBOARD, UIState.MEETING_BOOK
             },
             UIState.MEETING_BOOK: {
                 UIState.MEETING_LIST, UIState.CALENDAR_VIEW, UIState.DASHBOARD

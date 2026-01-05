@@ -170,6 +170,35 @@ async def get_meetings():
             "timeline": [
                 {"time": "14:00", "title": "Project Review", "tag": "Internal", "desc": "Weekly sync with engineering team"},
                 {"time": "15:30", "title": "Client Call", "tag": "External", "desc": "Discuss Q1 roadmap"}
+            ],
+            "meetings": [
+                {
+                    "id": "1",
+                    "title": "Project Review",
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "time": "14:00",
+                    "duration": 60,
+                    "participants": ["alice@dhii.ai", "bob@dhii.ai"],
+                    "status": "scheduled"
+                },
+                {
+                    "id": "2",
+                    "title": "Client Call",
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "time": "15:30",
+                    "duration": 30,
+                    "participants": ["client@example.com", "sales@dhii.ai"],
+                    "status": "confirmed"
+                },
+                {
+                    "id": "3",
+                    "title": "Board Review",
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "time": "16:30",
+                    "duration": 90,
+                    "participants": ["board@dhii.ai", "ceo@dhii.ai"],
+                    "status": "scheduled"
+                }
             ]
         }
         
