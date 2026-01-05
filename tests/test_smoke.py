@@ -47,7 +47,8 @@ def test_meetings_api():
     data = response.json()
     assert "data" in data
     # Check for expected keys in the context data
-    assert "meetings" in data["data"]
+    assert "active_session" in data["data"]
+    assert "timeline" in data["data"]
 
 def test_tasks_api():
     """Verify the tasks API returns context data."""

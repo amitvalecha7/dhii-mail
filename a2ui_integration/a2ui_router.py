@@ -162,19 +162,19 @@ async def get_meetings():
     """Get A2UI meetings interface"""
     try:
         context = {
-            "meetings": [
-                {
-                    "title": "Project Review",
-                    "date": "2024-01-01",
-                    "time": "14:00-15:00",
-                    "participants": ["john@example.com", "jane@example.com"],
-                    "status": "scheduled"
-                }
+            "active_session": {
+                "title": "Board Review",
+                "time_range": "14:00 - 15:00",
+                "participants_count": 5
+            },
+            "timeline": [
+                {"time": "14:00", "title": "Project Review", "tag": "Internal", "desc": "Weekly sync with engineering team"},
+                {"time": "15:30", "title": "Client Call", "tag": "External", "desc": "Discuss Q1 roadmap"}
             ]
         }
         
         ui_data = orchestrator.render_ui(UIState.MEETING_LIST, context)
-        return create_ui_response_from_orchestrator(ui_data)
+        return create_ui_response_from_orchestrator(ui_data, data=context)
     except Exception as e:
         logger.error(f"Error rendering meetings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
