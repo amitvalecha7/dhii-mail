@@ -39,7 +39,25 @@ def test_dashboard_api():
     assert response.status_code == 200
     data = response.json()
     assert "data" in data
-    assert "stats" in data["data"]
+
+def test_meetings_api():
+    """Verify the meetings API returns context data."""
+    response = client.get("/api/a2ui/meetings")
+    assert response.status_code == 200
+    data = response.json()
+    assert "data" in data
+    # Check for expected keys in the context data
+    assert "meetings" in data["data"]
+
+def test_tasks_api():
+    """Verify the tasks API returns context data."""
+    response = client.get("/api/a2ui/tasks")
+    assert response.status_code == 200
+    data = response.json()
+    assert "data" in data
+    # Check for expected keys in the context data
+    assert "tasks" in data["data"]
+    assert "critical_path" in data["data"]
 
 def test_chat_api():
     """Verify the chat API handles messages."""

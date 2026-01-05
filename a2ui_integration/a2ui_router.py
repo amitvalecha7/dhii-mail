@@ -151,7 +151,7 @@ async def get_calendar():
         }
         
         ui_data = orchestrator.render_ui(UIState.CALENDAR_VIEW, context)
-        return create_ui_response_from_orchestrator(ui_data)
+        return create_ui_response_from_orchestrator(ui_data, data=context)
     except Exception as e:
         logger.error(f"Error rendering calendar: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -206,9 +206,8 @@ async def get_tasks():
                 "description": "Review the Q3 reconciliation reports from the accounting agent before the Board sync."
             },
             "scheduled_jobs": [
-                {"title": "Update CI/CD Pipeline", "label": "Engineering", "icon": "settings_input_component"},
-                {"title": "Sarah - Design Review", "label": "Meeting", "icon": "brush"},
-                {"title": "Weekly Recap Draft", "label": "Admin", "icon": "edit_note"}
+                {"title": "Data Sync", "label": "Running", "icon": "sync"},
+                {"title": "Backup", "label": "Pending", "icon": "cloud_upload"}
             ]
         }
         
