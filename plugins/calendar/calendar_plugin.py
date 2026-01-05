@@ -13,6 +13,9 @@ from dataclasses import dataclass
 
 from a2ui_integration.core.types import DomainModule, Capability, PluginType, PluginConfig
 
+# Import the sync service
+from .services.sync_service import CalendarSyncService
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,6 +58,7 @@ class CalendarPlugin(DomainModule):
     def __init__(self, db_path: str = "calendar_plugin.db"):
         self.db_path = db_path
         self._events: Dict[str, CalendarEvent] = {}
+        self.sync_service: Optional[CalendarSyncService] = None
         
         # Initialize database
         self._init_database()
@@ -196,6 +200,25 @@ class CalendarPlugin(DomainModule):
                 },
                 side_effects=["event_updated"],
                 requires_auth=False
+            ),
+            Capability(
+                id="calendar.trigger_sync",
+                domain="calendar",
+                name="Trigger Sync",
+                description="Manually trigger calendar synchronization",
+                input_schema={
+                    "type": "object",
+                    "properties": {}
+                },
+                output_schema={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "boolean"},
+                        "error": {"type": "string"}
+                    }
+                },
+                side_effects=["calendar_sync_triggered"],
+                requires_auth=False
             )
         ]
     
@@ -243,6 +266,12 @@ class CalendarPlugin(DomainModule):
         """Initialize the calendar plugin"""
         try:
             logger.info("Initializing calendar plugin")
+            
+            # Initialize calendar sync service
+            self.sync_service = CalendarSyncService(self.db_path)
+            await self.sync_service.start()
+            
+            logger.info("Calendar sync service started")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize calendar plugin: {e}")
@@ -251,6 +280,11 @@ class CalendarPlugin(DomainModule):
     async def shutdown(self) -> bool:
         """Shutdown the calendar plugin"""
         try:
+            # Stop the calendar sync service if it's running
+            if self.sync_service:
+                await self.sync_service.stop()
+                logger.info("Calendar sync service stopped")
+            
             logger.info("Calendar plugin shutdown complete")
             return True
         except Exception as e:
@@ -269,6 +303,8 @@ class CalendarPlugin(DomainModule):
             return await self._delete_event(params)
         elif capability_id == "calendar.update_event":
             return await self._update_event(params)
+        elif capability_id == "calendar.trigger_sync":
+            return await self._trigger_sync(params)
         else:
             raise ValueError(f"Unknown capability: {capability_id}")
     
@@ -554,19 +590,45 @@ class CalendarPlugin(DomainModule):
                 "error": str(e)
             }
 
+    async def _trigger_sync(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Manually trigger calendar synchronization"""
+        try:
+            if not self.sync_service:
+                return {
+                    "success": False,
+                    "error": "Calendar sync service not initialized"
+                }
+            
+            success = await self.sync_service.trigger_sync()
+            return {
+                "success": success,
+                "error": None if success else "Sync failed"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to trigger calendar sync: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
 
 # Plugin configuration
 CALENDAR_PLUGIN_CONFIG = PluginConfig(
     id="calendar_plugin",
     name="Calendar Plugin",
     version="1.0.0",
-    description="Comprehensive calendar management capabilities",
+    description="Comprehensive calendar management capabilities with automatic sync",
     type=PluginType.CALENDAR,
     author="dhii-mail-team",
-    enabled=False,
+    enabled=True,
     config={
         "default_working_hours_start": "09:00",
         "default_working_hours_end": "17:00",
+        "sync_enabled": True,
+        "sync_interval_minutes": 5,
+        "caldav_support": True,
+        "google_calendar_support": True,
         "slot_duration_minutes": 30
     },
     capabilities=[],  # Will be populated by the plugin instance

@@ -44,6 +44,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize Intelligence Layer
+from intelligence_layer import initialize_intelligence_layer
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Intelligence Layer on application startup"""
+    try:
+        await initialize_intelligence_layer()
+        logger.info("Intelligence Layer initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Intelligence Layer: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup Intelligence Layer on application shutdown"""
+    from intelligence_layer import get_intelligence_layer
+    try:
+        layer = get_intelligence_layer()
+        await layer.stop()
+        logger.info("Intelligence Layer stopped successfully")
+    except Exception as e:
+        logger.error(f"Failed to stop Intelligence Layer: {e}")
+
 @app.get("/api")
 async def root():
     """Root endpoint to verify API is running."""
