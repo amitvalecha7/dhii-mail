@@ -5,9 +5,16 @@ Handles conversion of all application states to A2UI component schemas
 
 import json
 import logging
+import os
+import re
+import asyncio
+import aiohttp
+import random
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from enum import Enum
+from pydantic import BaseModel
+import httpx
 
 from .a2ui_components_extended import A2UIComponents, A2UITemplates
 from .a2ui_state_machine import A2UIStateMachine, UIState, StateTransition
@@ -48,6 +55,25 @@ class OptimisticExecutionResult:
     execution_time_ms: int = 0
     success: bool = True
 
+# AI Models (Consolidated from ai_engine.py)
+class AIIntent(BaseModel):
+    """Represents detected user intent"""
+    intent: str
+    confidence: float
+    entities: Dict[str, Any] = {}
+    response_type: str = "text"
+    requires_clarification: bool = False
+    ambiguity_reason: Optional[str] = None
+
+class AIResponse(BaseModel):
+    """Complete AI response with UI components"""
+    message: str
+    intent: AIIntent
+    actions: List[Dict[str, Any]] = []
+    ui_components: Optional[Dict[str, Any]] = None
+    requires_user_input: bool = False
+    session_data: Dict[str, Any] = {}
+
 class A2UIOrchestrator:
     """Central orchestrator for A2UI-based UI rendering"""
     
@@ -62,6 +88,15 @@ class A2UIOrchestrator:
         # Neural Loop processing state
         self.neural_loop_state = OrchestratorState.IDLE
         self.current_loop: Optional[NeuralLoopContext] = None
+        
+        # AI Engine functionality (consolidated from ai_engine.py)
+        self.system_prompt = """You are dhii, an AI assistant specialized in email and calendar management.
+You help users with scheduling meetings, sending emails, managing calendars, and organizing their digital workspace.
+Be helpful, professional, and provide clear actionable responses."""
+        self.use_openrouter = os.getenv('USE_OPENROUTER', 'false').lower() == 'true'
+        self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
+        self.openrouter_model = os.getenv('OPENROUTER_MODEL', 'openai/gpt-3.5-turbo')
+        self.conversation_history = []
         
         # Neural Loop handlers
         self.loop_handlers = {
@@ -1418,3 +1453,360 @@ class A2UIOrchestrator:
         except Exception as e:
             logger.error(f"Error enhancing final UI: {e}")
             return final_ui  # Return original final UI on error
+    
+    # AI Engine Methods (Consolidated from ai_engine.py)
+    async def process_ai_message(self, message: str, context: Optional[Dict[str, Any]] = None) -> AIResponse:
+        """Process user message and return AI response with UI components"""
+        if context is None:
+            context = {}
+        
+        # Detect intent
+        intent = self.detect_intent(message)
+        
+        # Generate response based on intent and context
+        response_message = await self._generate_ai_response(message, intent, context)
+        
+        # Generate actions based on intent
+        actions = self._generate_ai_actions(intent, context)
+        
+        # Generate UI components based on intent
+        ui_components = self._generate_ai_ui_components(intent, context)
+        
+        # Determine if user input is required
+        requires_user_input = self._requires_user_input(intent)
+        
+        # Update session data
+        session_data = self._update_session_data(intent, context)
+        
+        return AIResponse(
+            message=response_message,
+            intent=intent,
+            actions=actions,
+            ui_components=ui_components,
+            requires_user_input=requires_user_input,
+            session_data=session_data
+        )
+    
+    def detect_intent(self, message: str) -> AIIntent:
+        """Detect user intent from message using pattern matching"""
+        message_lower = message.lower().strip()
+        
+        # Intent patterns (consolidated from ai_engine.py)
+        intent_patterns = {
+            "schedule_meeting": [
+                r"schedule.*meeting", r"book.*meeting", r"set.*meeting", 
+                r"meeting.*with", r"meet.*with", r"appointment.*with"
+            ],
+            "send_email": [
+                r"send.*email", r"email.*to", r"write.*email", 
+                r"compose.*email", r"mail.*to", r"message.*to"
+            ],
+            "check_calendar": [
+                r"check.*calendar", r"view.*calendar", r"what.*schedule",
+                r"my.*calendar", r"upcoming.*events", r"today.*schedule"
+            ],
+            "manage_contacts": [
+                r"add.*contact", r"contact.*list", r"find.*contact",
+                r"contact.*info", r"phone.*book", r"address.*book"
+            ],
+            "help": [
+                r"help", r"what.*can.*you.*do", r"assist", 
+                r"guide", r"support", r"instructions"
+            ],
+            "greeting": [
+                r"hello", r"hi", r"hey", r"good.*morning", 
+                r"good.*afternoon", r"good.*evening"
+            ],
+            "goodbye": [
+                r"bye", r"goodbye", r"see.*you", r"talk.*later", 
+                r"done", r"finish"
+            ]
+        }
+        
+        # Entity extraction patterns
+        entity_patterns = {
+            "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+            "phone": r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",
+            "date": r"\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|tomorrow|today|next\s+week)\b",
+            "time": r"\b(?:\d{1,2}:\d{2}\s*(?:am|pm)?|\d{1,2}\s*(?:am|pm))\b"
+        }
+        
+        # Check for matching intents
+        detected_intents = []
+        for intent_name, patterns in intent_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, message_lower):
+                    detected_intents.append(intent_name)
+                    break
+        
+        # Extract entities
+        entities = {}
+        for entity_name, pattern in entity_patterns.items():
+            matches = re.findall(pattern, message_lower)
+            if matches:
+                entities[entity_name] = matches
+        
+        # Determine primary intent
+        if detected_intents:
+            primary_intent = detected_intents[0]
+            confidence = min(0.9, 0.6 + (0.1 * len(detected_intents)))  # Base 0.6 + bonus for multiple matches
+        else:
+            primary_intent = "unknown"
+            confidence = 0.3
+        
+        # Check for ambiguity
+        requires_clarification = False
+        ambiguity_reason = None
+        
+        if len(detected_intents) > 2:
+            requires_clarification = True
+            ambiguity_reason = "Multiple possible intents detected"
+        elif not entities and primary_intent in ["schedule_meeting", "send_email"]:
+            requires_clarification = True
+            ambiguity_reason = "Missing required information (contacts, dates, etc.)"
+        
+        return AIIntent(
+            intent=primary_intent,
+            confidence=confidence,
+            entities=entities,
+            response_type="text",
+            requires_clarification=requires_clarification,
+            ambiguity_reason=ambiguity_reason
+        )
+    
+    async def _generate_ai_response(self, message: str, intent: AIIntent, context: Dict[str, Any]) -> str:
+        """Generate AI response based on intent and context"""
+        
+        # Try OpenRouter first if enabled
+        if self.use_openrouter and self.openrouter_api_key:
+            try:
+                return await self._generate_openrouter_response(message, context)
+            except Exception as e:
+                logger.warning(f"OpenRouter failed, falling back to pattern-based: {e}")
+        
+        # Fallback to pattern-based responses
+        return self._generate_pattern_based_response(message, intent, context)
+    
+    async def _generate_openrouter_response(self, message: str, context: Dict[str, Any]) -> str:
+        """Generate response using OpenRouter API"""
+        import httpx
+        
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://dhii-mail.com",
+            "X-Title": "dhii-mail"
+        }
+        
+        # Build conversation history
+        messages = [{"role": "system", "content": self.system_prompt}]
+        messages.extend(self.conversation_history[-5:])  # Last 5 messages
+        messages.append({"role": "user", "content": message})
+        
+        payload = {
+            "model": self.openrouter_model,
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 500
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30.0
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+    
+    def _generate_pattern_based_response(self, message: str, intent: AIIntent, context: Dict[str, Any]) -> str:
+        """Generate response using pattern-based logic"""
+        
+        intent_responses = {
+            "schedule_meeting": [
+                "I'd be happy to help you schedule a meeting!",
+                "Let me help you set up that meeting.",
+                "I can help you schedule a meeting. Who would you like to meet with?"
+            ],
+            "send_email": [
+                "I can help you compose and send an email.",
+                "Let me help you write that email.",
+                "I'd be happy to help you send an email. Who is the recipient?"
+            ],
+            "check_calendar": [
+                "Let me check your calendar for you.",
+                "I'll show you your upcoming schedule.",
+                "Here's what's on your calendar."
+            ],
+            "manage_contacts": [
+                "I can help you manage your contacts.",
+                "Let me help you with your contact list.",
+                "What would you like to do with your contacts?"
+            ],
+            "help": [
+                "I'm dhii, your AI assistant for email and calendar management. I can help you:",
+                "• Schedule meetings and appointments",
+                "• Send and manage emails", 
+                "• Check your calendar",
+                "• Manage your contacts",
+                "What would you like to do?"
+            ],
+            "greeting": [
+                "Hello! How can I help you today?",
+                "Hi there! What can I do for you?",
+                "Hello! I'm here to help with your email and calendar needs."
+            ],
+            "goodbye": [
+                "Goodbye! Have a great day!",
+                "See you later! Feel free to reach out if you need anything.",
+                "Take care! I'm here whenever you need help."
+            ],
+            "unknown": [
+                "I'm not sure I understand. Could you please rephrase that?",
+                "Could you clarify what you'd like help with?",
+                "I can help with email, calendar, and contact management. What would you like to do?"
+            ]
+        }
+        
+        # Handle clarification requests
+        if intent.requires_clarification:
+            if intent.ambiguity_reason == "Multiple possible intents detected":
+                return "I noticed you might be asking about several things. Could you clarify what you'd like help with specifically?"
+            elif intent.ambiguity_reason == "Missing required information (contacts, dates, etc.)":
+                return f"I'd be happy to help you {intent.intent.replace('_', ' ')}. Could you provide more details like who, when, or what?"
+        
+        # Return appropriate response
+        responses = intent_responses.get(intent.intent, intent_responses["unknown"])
+        return random.choice(responses)
+    
+    def _generate_ai_actions(self, intent: AIIntent, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate available actions based on intent"""
+        actions = []
+        
+        if intent.intent == "schedule_meeting":
+            actions.extend([
+                {
+                    "type": "calendar",
+                    "action": "suggest_times",
+                    "label": "Suggest Meeting Times",
+                    "description": "Show available time slots"
+                },
+                {
+                    "type": "calendar", 
+                    "action": "check_availability",
+                    "label": "Check Availability",
+                    "description": "Check calendar conflicts"
+                }
+            ])
+        elif intent.intent == "send_email":
+            actions.extend([
+                {
+                    "type": "email",
+                    "action": "compose",
+                    "label": "Compose Email",
+                    "description": "Open email composer"
+                },
+                {
+                    "type": "email",
+                    "action": "templates",
+                    "label": "Email Templates",
+                    "description": "Show email templates"
+                }
+            ])
+        elif intent.intent == "check_calendar":
+            actions.extend([
+                {
+                    "type": "calendar",
+                    "action": "view_today",
+                    "label": "Today's Schedule",
+                    "description": "Show today's events"
+                },
+                {
+                    "type": "calendar",
+                    "action": "view_week",
+                    "label": "This Week",
+                    "description": "Show this week's schedule"
+                }
+            ])
+        elif intent.intent == "manage_contacts":
+            actions.extend([
+                {
+                    "type": "contacts",
+                    "action": "view_all",
+                    "label": "View Contacts",
+                    "description": "Show all contacts"
+                },
+                {
+                    "type": "contacts",
+                    "action": "add_new",
+                    "label": "Add Contact",
+                    "description": "Add new contact"
+                }
+            ])
+        
+        # Always add help action
+        actions.append({
+            "type": "system",
+            "action": "help",
+            "label": "Help",
+            "description": "Show available commands"
+        })
+        
+        return actions
+    
+    def _generate_ai_ui_components(self, intent: AIIntent, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Generate UI components based on intent"""
+        
+        if intent.intent == "check_calendar":
+            return {
+                "type": "calendar_view",
+                "component": "CalendarDashboard",
+                "props": {
+                    "view": "week",
+                    "date": "today"
+                }
+            }
+        elif intent.intent == "schedule_meeting":
+            return {
+                "type": "meeting_scheduler",
+                "component": "MeetingScheduler",
+                "props": {
+                    "mode": "suggest_times"
+                }
+            }
+        elif intent.intent == "send_email":
+            return {
+                "type": "email_composer",
+                "component": "EmailComposer", 
+                "props": {
+                    "mode": "compose",
+                    "template": None
+                }
+            }
+        elif intent.intent == "manage_contacts":
+            return {
+                "type": "contact_manager",
+                "component": "ContactManager",
+                "props": {
+                    "mode": "view_all"
+                }
+            }
+        
+        return None
+    
+    def _requires_user_input(self, intent: AIIntent) -> bool:
+        """Determine if user input is required based on intent"""
+        return intent.requires_clarification or intent.intent == "unknown"
+    
+    def _update_session_data(self, intent: AIIntent, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Update session data with intent information"""
+        return {
+            "last_intent": intent.intent,
+            "last_confidence": intent.confidence,
+            "entities": intent.entities,
+            "timestamp": datetime.now().isoformat(),
+            "requires_followup": intent.requires_clarification
+        }

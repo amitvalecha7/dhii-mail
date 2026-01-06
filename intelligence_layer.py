@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any, Callable
 
 # Import existing infrastructure
 from a2ui_integration.core.shared_services import EventBus, EventType, Event
-from ai_engine import AIEngine
+from a2ui_integration.a2ui_orchestrator import A2UIOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class IntelligenceLayer:
     def __init__(self, event_bus: EventBus, db_path: str):
         self.event_bus = event_bus
         self.db_path = db_path
-        self.ai_engine = AIEngine()
+        self.ai_engine = A2UIOrchestrator()
         self.analysis_workers = {}
         self.subscriptions = {}
         self.running = False

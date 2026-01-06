@@ -5,7 +5,7 @@ def try_import(name):
     print(f"--- Importing {name} ---")
     try:
         if name == "ai_engine":
-            from ai_engine import ai_engine
+            from a2ui_integration.a2ui_orchestrator import A2UIOrchestrator
         elif name == "marketing_manager":
             from marketing_manager import marketing_manager
         print(f"✅ {name}: Success")

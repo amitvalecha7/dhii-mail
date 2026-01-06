@@ -1,7 +1,17 @@
 """
 AI Engine for dhii Mail
 Handles natural language processing, intent recognition, and AI responses
+
+DEPRECATED: This module has been consolidated into a2ui_integration/a2ui_orchestrator.py
+Please use the AI functionality in A2UIOrchestrator instead.
 """
+
+import warnings
+warnings.warn(
+    "ai_engine.py is deprecated. Use a2ui_integration.a2ui_orchestrator.A2UIOrchestrator instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import os
 import json
