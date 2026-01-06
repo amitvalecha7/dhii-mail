@@ -116,6 +116,77 @@ app.mount("/auth", auth_app)
 from a2ui_integration.a2ui_router import router as a2ui_router
 app.include_router(a2ui_router)
 
+# Plugin Registry Proxy
+import httpx
+from fastapi import HTTPException
+
+@app.get("/api/v1/plugins")
+async def list_plugins():
+    """Proxy to plugin registry service"""
+    try:
+        async with httpx.AsyncClient() as client:
+            # Direct call to plugin registry service (bypass nginx to avoid circular dependency)
+            registry_url = "http://plugin-registry:5000/api/v1/plugins"
+            response = await client.get(registry_url, timeout=10.0)
+            return response.json()
+    except Exception as e:
+        logger.error(f"Plugin registry proxy error: {e}")
+        # Fallback: return hardcoded plugins if service is unavailable
+        return {
+            "plugins": [
+                {
+                    "id": "com.dhiimail.marketing",
+                    "name": "Marketing Genius",
+                    "version": "1.0.0",
+                    "description": "AI-powered marketing campaign generator",
+                    "manifest_url": "/plugins/marketing/manifest.json"
+                },
+                {
+                    "id": "com.dhiimail.finance",
+                    "name": "Finance Flow",
+                    "version": "1.2.0",
+                    "description": "Invoice processing and expense tracking",
+                    "manifest_url": "/plugins/finance/manifest.json"
+                }
+            ]
+        }
+
+@app.get("/api/v1/plugins/{plugin_id}")
+async def get_plugin(plugin_id: str):
+    """Proxy to plugin registry service for specific plugin"""
+    try:
+        async with httpx.AsyncClient() as client:
+            registry_url = f"http://plugin-registry:5000/api/v1/plugins/{plugin_id}"
+            response = await client.get(registry_url, timeout=10.0)
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Plugin not found")
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Plugin registry proxy error: {e}")
+        # Fallback: search in hardcoded plugins
+        plugins = [
+            {
+                "id": "com.dhiimail.marketing",
+                "name": "Marketing Genius",
+                "version": "1.0.0",
+                "description": "AI-powered marketing campaign generator",
+                "manifest_url": "/plugins/marketing/manifest.json"
+            },
+            {
+                "id": "com.dhiimail.finance",
+                "name": "Finance Flow",
+                "version": "1.2.0",
+                "description": "Invoice processing and expense tracking",
+                "manifest_url": "/plugins/finance/manifest.json"
+            }
+        ]
+        plugin = next((p for p in plugins if p['id'] == plugin_id), None)
+        if plugin:
+            return plugin
+        raise HTTPException(status_code=404, detail="Plugin not found")
+
 # Serve React Frontend (Static Files)
 from fastapi.staticfiles import StaticFiles
 import os
