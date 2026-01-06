@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -32,16 +33,42 @@ setup_apm(app)
 # 1. Logging middleware
 setup_logging_middleware(app)
 
-# 2. Database session middleware
+# 2. Security Headers middleware (will execute after CORS)
+# SECURITY: Add security headers as per security manifesto
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Add security headers to all responses"""
+    response = await call_next(request)
+    
+    # Add security headers based on security manifesto
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    # Add HSTS in production
+    # SECURITY: Enable HSTS in production for HTTPS enforcement
+    if os.environ.get('ENVIRONMENT', 'development').lower() == 'production':
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    # Add Content Security Policy
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    
+    return response
+
+# 3. Database session middleware
 app.middleware("http")(database_session_middleware)
 
-# 3. CORS middleware (innermost of standard middleware)
+# 4. CORS middleware (innermost of standard middleware)
+# SECURITY: Configure CORS based on environment and security requirements
+from config import settings
+cors_config = settings.get_cors_config()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Configure from settings
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_config["allow_origins"],
+    allow_credentials=cors_config["allow_credentials"],
+    allow_methods=cors_config["allow_methods"],
+    allow_headers=cors_config["allow_headers"],
 )
 
 # Initialize Intelligence Layer
