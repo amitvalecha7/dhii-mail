@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from a2ui_integration.core.types import DomainModule, Capability, PluginType, PluginConfig
 
 # Import the sync service
-from .services.sync_service import CalendarSyncService
+from .services.sync_service import CalendarSyncService, get_calendar_sync_service
 
 logger = logging.getLogger(__name__)
 
@@ -268,9 +268,7 @@ class CalendarPlugin(DomainModule):
             logger.info("Initializing calendar plugin")
             
             # Initialize calendar sync service
-            self.sync_service = CalendarSyncService(self.db_path)
-            await self.sync_service.start()
-            
+            self.sync_service = await get_calendar_sync_service(self.db_path)
             logger.info("Calendar sync service started")
             return True
         except Exception as e:
@@ -357,6 +355,52 @@ class CalendarPlugin(DomainModule):
     async def _get_events(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Get calendar events for a date range"""
         try:
+            from datetime import datetime
+            
+            # Parse date parameters
+            start_date = None
+            end_date = None
+            
+            if 'start_date' in params:
+                start_date = datetime.fromisoformat(params['start_date'])
+            else:
+                start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            if 'end_date' in params:
+                end_date = datetime.fromisoformat(params['end_date'])
+            else:
+                end_date = start_date + timedelta(days=7)  # Default to 7 days
+            
+            # Get user_id from organizer or use default
+            user_id = 1  # Default user_id, should be determined from auth context
+            if 'organizer' in params:
+                # Extract user_id from organizer email or use mapping
+                organizer = params['organizer']
+                if '@' in organizer:
+                    user_id = 1  # Placeholder - should map organizer to user_id
+            
+            # Use sync service to get events if available, otherwise use local database
+            if self.sync_service:
+                events = self.sync_service.get_local_events(user_id, start_date, end_date)
+            else:
+                # Fallback to local database query
+                events = await self._get_events_from_local_db(params)
+            
+            return {
+                "events": events,
+                "count": len(events)
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get events: {e}")
+            return {
+                "events": [],
+                "count": 0
+            }
+    
+    async def _get_events_from_local_db(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Get events from local database (fallback method)"""
+        try:
             import sqlite3
             
             conn = sqlite3.connect(self.db_path)
@@ -408,17 +452,11 @@ class CalendarPlugin(DomainModule):
                     "status": event_data[8]
                 })
             
-            return {
-                "events": events,
-                "count": len(events)
-            }
+            return events
             
         except Exception as e:
-            logger.error(f"Failed to get events: {e}")
-            return {
-                "events": [],
-                "count": 0
-            }
+            logger.error(f"Failed to get events from local DB: {e}")
+            return []
     
     async def _find_availability(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Find available time slots"""

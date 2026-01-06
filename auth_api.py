@@ -10,10 +10,13 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import bcrypt
 from uuid import uuid4
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Import existing components
 from security_manager import SecurityManager
@@ -63,13 +66,105 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create access token using unified AuthManager"""
     # Extract user_id from data or use a default
     user_id = data.get("sub", "unknown_user")
-    return auth_manager.create_token(user_id, "access")
+    # For auth_api, create token directly without database lookup
+    # since we're using mock users_db
+    try:
+        from datetime import datetime, timezone
+        import pyseto
+        import json
+        import secrets
+        
+        # Create token payload
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(hours=24)  # 24 hour token
+        
+        payload = {
+            'user_id': user_id,
+            'token_type': 'access',
+            'scopes': ['read', 'write'],
+            'issued_at': now.isoformat(),
+            'expires_at': expires_at.isoformat(),
+            'token_id': secrets.token_urlsafe(16)
+        }
+        
+        # Create PASETO token
+        key = pyseto.Key.new(4, 'local', auth_manager.secret_key.encode('utf-8'))
+        token = pyseto.encode(key, json.dumps(payload).encode('utf-8'))
+        
+        return token.decode('utf-8') if isinstance(token, bytes) else str(token)
+        
+    except Exception as e:
+        logger.error(f"Error creating token: {e}")
+        return None
+
+def verify_access_token(token: str) -> Optional[Dict[str, Any]]:
+    """Verify access token without database lookup for auth_api"""
+    try:
+        from datetime import datetime, timezone
+        import pyseto
+        import json
+        
+        # Decode token
+        key = pyseto.Key.new(4, 'local', auth_manager.secret_key.encode('utf-8'))
+        token_bytes = token.encode('utf-8') if isinstance(token, str) else token
+        decoded = pyseto.decode(key, token_bytes)
+        
+        payload = decoded.payload
+        if isinstance(payload, bytes):
+            payload = json.loads(payload.decode('utf-8'))
+        elif isinstance(payload, str):
+            payload = json.loads(payload)
+        
+        # Validate token type
+        if payload.get('token_type') != 'access':
+            logger.warning(f"Token type mismatch: expected access, got {payload.get('token_type')}")
+            return None
+        
+        # Check expiration
+        expires_at = datetime.fromisoformat(payload['expires_at'])
+        if datetime.now(timezone.utc) > expires_at:
+            logger.warning(f"Token expired for user {payload['user_id']}")
+            return None
+        
+        # Return user data from token
+        return {
+            'id': payload['user_id'],
+            'email': payload['user_id'],  # In our mock system, user_id is the email
+            'name': 'User',  # Default name
+            'scopes': payload.get('scopes', ['read'])
+        }
+        
+    except Exception as e:
+        logger.error(f"Token verification failed: {e}")
+        return None
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+def get_current_user_from_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> Dict[str, Any]:
+    """FastAPI dependency to get current user from JWT token for auth_api"""
+    from fastapi import HTTPException, status
+    
+    token = credentials.credentials
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    user = verify_access_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return user
 
 @app.get("/auth/signup", response_class=HTMLResponse)
 async def get_signup_page():
@@ -581,7 +676,7 @@ async def get_signup_page():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error serving signup page: {str(e)}")
 
-@app.post("/auth/api/signup")
+@app.post("/api/signup")
 async def api_signup(user_data: UserSignup):
     """API endpoint for user signup"""
     try:
@@ -967,7 +1062,7 @@ async def get_login_page():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error serving login page: {str(e)}")
 
-@app.post("/auth/api/login")
+@app.post("/api/login")
 async def api_login(user_data: UserLogin):
     """API endpoint for user login"""
     try:

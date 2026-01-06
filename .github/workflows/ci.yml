@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ '**' ]
 
 jobs:
   build-and-test:
@@ -24,10 +24,10 @@ jobs:
         pip install -r requirements.txt
         pip install pytest httpx
 
-    - name: Set up Node.js
+    - name: Set up Node.js 18
       uses: actions/setup-node@v3
       with:
-        node-version: '20'
+        node-version: '18'
 
     - name: Install Frontend dependencies
       working-directory: ./a2ui_integration/client
@@ -37,6 +37,50 @@ jobs:
       working-directory: ./a2ui_integration/client
       run: npm run build
 
+    - name: Start Backend Server
+      run: |
+        python main.py &
+        sleep 5
+        echo "Server started"
+
     - name: Run Smoke Tests
       run: |
         pytest tests/test_smoke.py -v
+
+    - name: Run Specific Smoke Tests
+      run: |
+        # Test /health endpoint
+        python -c "
+import requests
+import json
+response = requests.get('http://localhost:8000/health')
+assert response.status_code == 200
+assert response.json()['status'] == 'healthy'
+print('✅ /health endpoint working')
+"
+        
+        # Test /calendar/events endpoint
+        python -c "
+import requests
+response = requests.get('http://localhost:8000/api/a2ui/calendar')
+assert response.status_code == 200
+print('✅ /calendar/events endpoint working')
+"
+        
+        # Test /email/inbox endpoint
+        python -c "
+import requests
+response = requests.get('http://localhost:8000/api/a2ui/email/inbox')
+assert response.status_code == 200
+print('✅ /email/inbox endpoint working')
+"
+        
+        # Test POST /api/a2ui/chat returns a2ui_json
+        python -c "
+import requests
+import json
+response = requests.post('http://localhost:8000/api/a2ui/chat', json={'message': 'test', 'session_id': 'test'})
+assert response.status_code == 200
+assert 'response' in response.json()
+print('✅ POST /api/a2ui/chat endpoint working')
+"

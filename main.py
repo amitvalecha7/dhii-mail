@@ -79,8 +79,10 @@ async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
 
 # Import and include routers
-# from routers import auth, users
-# app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+from auth_api import app as auth_app
+app.mount("/auth", auth_app)
+
+# from routers import users
 # app.include_router(users.router, prefix="/api/users", tags=["users"])
 
 # A2UI Router

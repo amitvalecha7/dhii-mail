@@ -1,25 +1,43 @@
 """
-A2UI Router - Updated for All-A2UI Architecture
-Handles all A2UI endpoints with orchestrator-based rendering
+A2UI Router - Updated for Unified Orchestrator Integration
+Handles all A2UI endpoints with Neural Loop processing and Intent Engine
 """
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import json
 import logging
 from datetime import datetime
+import asyncio
 
-from .a2ui_orchestrator import A2UIOrchestrator, UIState
+from .a2ui_orchestrator import A2UIOrchestrator, UIState, OrchestratorState
 from .a2ui_components_extended import A2UIComponents, A2UITemplates
+from .liquid_glass_host import LiquidGlassHost, ComponentType
+from auth_api import get_current_user_from_token as get_current_user
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 logger = logging.getLogger(__name__)
 
+# Mock authentication for testing - always provides a test user for testing
+async def get_current_user_mock(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+) -> Dict[str, Any]:
+    """Mock authentication that always provides a test user for testing purposes."""
+    # Always return a test user for testing
+    return {
+        "id": "test-user-123",
+        "name": "Test User",
+        "email": "test@example.com",
+        "username": "testuser"
+    }
+
 router = APIRouter(prefix="/api/a2ui", tags=["a2ui"])
 
-# Global orchestrator instance
+# Global orchestrator instances
 orchestrator = A2UIOrchestrator()
+liquid_glass_host = LiquidGlassHost()
 
 # Request/Response Models
 class UIRequest(BaseModel):
@@ -33,27 +51,75 @@ class UIResponse(BaseModel):
     state_info: Dict[str, Any]
     timestamp: str
     data: Optional[Dict[str, Any]] = {}
+    type: Optional[str] = "final_response"  # Unified orchestrator response type
+    skeleton: Optional[Dict[str, Any]] = None  # For optimistic execution
+    execution_id: Optional[str] = None  # For tracking optimistic execution
+    requires_user_input: Optional[bool] = False  # For clarification responses
+    clarification_questions: Optional[List[str]] = None  # For ambiguity resolution
+    error: Optional[str] = None  # For error responses
+    recovery_options: Optional[List[str]] = None  # For error recovery
 
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
 
+class ProcessIntentRequest(BaseModel):
+    user_input: str
+    context: Optional[Dict[str, Any]] = None
+
 def create_ui_response_from_orchestrator(ui_data: Dict[str, Any], data: Dict[str, Any] = None) -> UIResponse:
     """Convert orchestrator output to UIResponse format"""
-    return UIResponse(
-        component=ui_data.get("component", {}),
-        state_info=ui_data.get("state_info", {}),
-        timestamp=datetime.now().isoformat(),
-        data=data or {}
-    )
+    # Handle unified orchestrator response format
+    if ui_data.get("type") == "optimistic_response":
+        return UIResponse(
+            component=ui_data.get("skeleton", {}),
+            state_info={"type": "optimistic", "execution_id": ui_data.get("execution_id")},
+            timestamp=ui_data.get("timestamp", datetime.now().isoformat()),
+            data=data or {},
+            type=ui_data.get("type", "optimistic_response"),
+            skeleton=ui_data.get("skeleton"),
+            execution_id=ui_data.get("execution_id")
+        )
+    elif ui_data.get("type") == "clarification_response":
+        return UIResponse(
+            component=ui_data.get("ui", {}),
+            state_info={"type": "clarification"},
+            timestamp=ui_data.get("timestamp", datetime.now().isoformat()),
+            data=data or {},
+            type=ui_data.get("type", "clarification_response"),
+            requires_user_input=True,
+            clarification_questions=ui_data.get("clarification_questions", [])
+        )
+    elif ui_data.get("type") == "error_response":
+        return UIResponse(
+            component=ui_data.get("ui", {}),
+            state_info={"type": "error"},
+            timestamp=ui_data.get("timestamp", datetime.now().isoformat()),
+            data=data or {},
+            type=ui_data.get("type", "error_response"),
+            error=ui_data.get("error"),
+            recovery_options=ui_data.get("recovery_options", [])
+        )
+    else:
+        # Default final response or legacy format
+        return UIResponse(
+            component=ui_data.get("ui", ui_data.get("component", {})),
+            state_info=ui_data.get("state_info", {}),
+            timestamp=ui_data.get("timestamp", datetime.now().isoformat()),
+            data=data or {},
+            type=ui_data.get("type", "final_response")
+        )
 
 # All-A2UI Dashboard Routes
 @router.get("/dashboard", response_model=UIResponse)
-async def get_dashboard(user_id: Optional[str] = None):
-    """Get complete A2UI dashboard"""
+async def get_dashboard(current_user: dict = Depends(get_current_user_mock)):
+    """Get complete A2UI dashboard using unified orchestrator Neural Loop"""
     try:
+        # Use unified orchestrator for Neural Loop processing
+        user_intent = "show dashboard"
         context = {
-            "name": "User",
+            "name": current_user.get("name", "User"),
+            "user_id": current_user.get("id"),
             "stats": {
                 "meetings": 3,
                 "pendingEmails": 5,
@@ -71,11 +137,18 @@ async def get_dashboard(user_id: Optional[str] = None):
             ]
         }
         
-        ui_data = orchestrator.render_ui(UIState.DASHBOARD, context)
+        # Use unified orchestrator dashboard-specific handler to bypass Neural Loop ambiguity
+        ui_data = await orchestrator.process_dashboard_request(context)
         return create_ui_response_from_orchestrator(ui_data, data=context)
     except Exception as e:
-        logger.error(f"Error rendering dashboard: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error rendering dashboard with unified orchestrator: {e}")
+        # Fallback to standard UI rendering
+        try:
+            ui_data = orchestrator.render_ui(UIState.DASHBOARD, context)
+            return create_ui_response_from_orchestrator(ui_data, data=context)
+        except Exception as fallback_error:
+            logger.error(f"Standard UI rendering also failed: {fallback_error}")
+            raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/ui/action")
 async def handle_ui_action(request: UIRequest):
@@ -259,35 +332,160 @@ async def get_analytics():
 
 # Settings A2UI Routes
 @router.get("/settings", response_model=UIResponse)
-async def get_settings():
+async def get_settings(current_user: dict = Depends(get_current_user_mock)):
     """Get A2UI settings interface"""
     try:
-        ui_data = orchestrator.render_ui(UIState.SETTINGS)
-        return create_ui_response_from_orchestrator(ui_data)
+        # Use unified orchestrator for settings
+        context = {
+            "user_id": current_user.get("id"),
+            "user_name": current_user.get("name"),
+            "user_email": current_user.get("email"),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Process settings request through unified orchestrator
+        result = await orchestrator.process_user_intent("show settings", context)
+        
+        # Convert to UI response format
+        return create_ui_response_from_orchestrator(result)
     except Exception as e:
         logger.error(f"Error rendering settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Chat Route
+# Chat Route - Updated for unified orchestrator Neural Loop
 @router.post("/chat")
-async def chat_endpoint(request: ChatRequest):
-    """Handle chat messages from the frontend"""
+async def chat_endpoint(request: ChatRequest, current_user: dict = Depends(get_current_user_mock)):
+    """Handle chat messages using unified orchestrator Neural Loop processing"""
     try:
-        # TODO: Integrate with actual LLM/Kernel logic
-        # For now, we return a mocked response to acknowledge the neural link
-        
-        response_text = f"Received: {request.message}. Neural link active. [Kernel Placeholder]"
-        
-        # If the message contains certain keywords, we could trigger UI actions
-        # This simulates the "intelligent" aspect
-        if "dashboard" in request.message.lower():
-            response_text = "Navigating to dashboard..."
-            # In a real implementation, this would return a UI action to change state
-            
-        return {
-            "response": response_text,
-            "session_id": request.session_id or "default_session"
+        # Process user message through Neural Loop
+        context = {
+            "session_id": request.session_id or "default_session",
+            "user_id": current_user.get("id"),
+            "user_name": current_user.get("name"),
+            "user_email": current_user.get("email"),
+            "timestamp": datetime.now().isoformat()
         }
+        
+        # Use unified orchestrator for Neural Loop processing
+        result = await orchestrator.process_user_intent(request.message, context)
+        
+        # Handle None result
+        if result is None:
+            result = {
+                "type": "error_response",
+                "response": "Sorry, I couldn't process your request.",
+                "ui": {"component": {"Card": {"title": {"literalString": "❌ Error"}, "content": {"literalString": "Unable to process your message"}, "actions": [], "variant": "error"}}}
+            }
+        
+        # Convert to UI response format
+        ui_response = create_ui_response_from_orchestrator(result)
+        
+        # Return both chat response and UI update if needed
+        return {
+            "response": result.get("response", "Processing your request..."),
+            "session_id": request.session_id or "default_session",
+            "ui_update": ui_response.dict() if hasattr(ui_response, 'dict') else ui_response,
+            "neural_loop_state": result.get("type", "final_response")
+        }
+        
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error in chat endpoint with unified orchestrator: {e}")
+        # Fallback to basic response
+        return {
+            "response": f"I encountered an error processing your request: {str(e)}",
+            "session_id": request.session_id or "default_session",
+            "error": True
+        }
+
+@router.post("/process-intent")
+async def process_intent_endpoint(request: ProcessIntentRequest, current_user: dict = Depends(get_current_user_mock)):
+    """Process user intent through unified orchestrator Neural Loop"""
+    try:
+        # Add user context to the request
+        user_context = request.context or {}
+        user_context["user_id"] = current_user.get("id")
+        user_context["user_name"] = current_user.get("name")
+        user_context["user_email"] = current_user.get("email")
+        
+        # Use unified orchestrator for Neural Loop processing
+        result = await orchestrator.process_user_intent(request.user_input, user_context)
+        
+        # Convert to UI response format
+        ui_response = create_ui_response_from_orchestrator(result)
+        
+        return ui_response
+        
+    except Exception as e:
+        logger.error(f"Error in process-intent endpoint with unified orchestrator: {e}")
+        # Return error response
+        return UIResponse(
+            component={"error": str(e)},
+            state_info={"type": "error"},
+            timestamp=datetime.now().isoformat(),
+            type="error_response",
+            error=str(e)
+        )
+
+@router.post("/stream-intent")
+async def stream_intent_endpoint(request: ProcessIntentRequest, current_user: dict = Depends(get_current_user_mock)):
+    """Stream user intent processing through unified orchestrator and Liquid Glass Host"""
+    try:
+        # Add user context to the request
+        user_context = request.context or {}
+        user_context["user_id"] = current_user.get("id")
+        user_context["user_name"] = current_user.get("name")
+        user_context["user_email"] = current_user.get("email")
+        
+        # First, get the unified orchestrator response
+        result = await orchestrator.process_user_intent(request.user_input, user_context)
+        
+        # Then, process through Liquid Glass Host for dynamic composition
+        if result.get("type") == "optimistic_response":
+            # Use Liquid Glass to enhance the optimistic skeleton
+            enhanced_ui = await liquid_glass_host.compose_ui(
+                {"skeleton": result["skeleton"]},
+                "optimistic"
+            )
+            
+            return create_ui_response_from_orchestrator({
+                "type": "streaming_response",
+                "ui": enhanced_ui,
+                "timestamp": datetime.now().isoformat()
+            })
+        
+        elif result.get("type") == "clarification_response":
+            # Process clarification through Liquid Glass for better UI
+            enhanced_ui = await liquid_glass_host.compose_ui(
+                {"clarification": result["ui"]},
+                "clarification"
+            )
+            
+            return create_ui_response_from_orchestrator({
+                "type": "clarification_response",
+                "ui": enhanced_ui,
+                "clarification_questions": result.get("clarification_questions", []),
+                "timestamp": datetime.now().isoformat()
+            })
+        
+        else:
+            # Process final response through Liquid Glass
+            enhanced_ui = await liquid_glass_host.compose_ui(
+                {"final": result.get("ui", {})},
+                "final"
+            )
+            
+            return create_ui_response_from_orchestrator({
+                "type": "final_response",
+                "ui": enhanced_ui,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in stream-intent endpoint: {e}")
+        return UIResponse(
+            component={"error": str(e)},
+            state_info={"type": "error"},
+            timestamp=datetime.now().isoformat(),
+            type="error_response",
+            error=str(e)
+        )

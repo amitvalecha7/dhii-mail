@@ -14,8 +14,39 @@ from .a2ui_state_machine import A2UIStateMachine, UIState, StateTransition
 from .a2ui_command_palette import A2UICommandPalette
 from .a2ui_appshell import A2UIAppShell
 from .data_structures import ComponentGraph
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+class OrchestratorState(Enum):
+    """Symphony Orchestrator states for Neural Loop processing"""
+    IDLE = "idle"
+    INTENT_PROCESSING = "intent_processing"
+    AMBIGUITY_RESOLUTION = "ambiguity_resolution"
+    OPTIMISTIC_EXECUTION = "optimistic_execution"
+    COMPOSITION = "composition"
+    ERROR_RECOVERY = "error_recovery"
+
+@dataclass
+class NeuralLoopContext:
+    """Context for Neural Loop processing"""
+    user_intent: str
+    raw_input: str
+    detected_intent: Optional[Dict[str, Any]] = None
+    missing_parameters: List[str] = None
+    clarification_questions: List[str] = None
+    plugin_capabilities: List[Dict[str, Any]] = None
+    execution_results: Dict[str, Any] = None
+    ui_skeleton: Optional[Dict[str, Any]] = None
+    error_context: Optional[Dict[str, Any]] = None
+
+@dataclass  
+class OptimisticExecutionResult:
+    """Result of optimistic execution for latency hiding"""
+    skeleton_component: Dict[str, Any]
+    final_component: Optional[Dict[str, Any]] = None
+    execution_time_ms: int = 0
+    success: bool = True
 
 class A2UIOrchestrator:
     """Central orchestrator for A2UI-based UI rendering"""
@@ -27,6 +58,19 @@ class A2UIOrchestrator:
         self.command_palette = A2UICommandPalette()
         self.appshell = A2UIAppShell()
         self.user_context = {}
+        
+        # Neural Loop processing state
+        self.neural_loop_state = OrchestratorState.IDLE
+        self.current_loop: Optional[NeuralLoopContext] = None
+        
+        # Neural Loop handlers
+        self.loop_handlers = {
+            OrchestratorState.INTENT_PROCESSING: self._handle_intent_processing,
+            OrchestratorState.AMBIGUITY_RESOLUTION: self._handle_ambiguity_resolution,
+            OrchestratorState.OPTIMISTIC_EXECUTION: self._handle_optimistic_execution,
+            OrchestratorState.COMPOSITION: self._handle_composition,
+            OrchestratorState.ERROR_RECOVERY: self._handle_error_recovery
+        }
         
     def render_ui(self, state: UIState, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Render complete UI based on state and context"""
@@ -1055,3 +1099,178 @@ class A2UIOrchestrator:
         }
         
         return state_actions.get(current_state, ["navigate_dashboard"])
+    
+    # Neural Loop Processing Methods (Merged from SymphonyOrchestrator)
+    
+    async def process_user_intent(self, user_input: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main entry point for Neural Loop processing
+        Intent -> Clarification -> Composition -> Feedback -> Learning
+        """
+        self.user_context = context
+        self.current_loop = NeuralLoopContext(
+            user_intent=user_input,
+            raw_input=user_input,
+            missing_parameters=[],
+            clarification_questions=[],
+            plugin_capabilities=[]
+        )
+        
+        # Start Neural Loop
+        self.neural_loop_state = OrchestratorState.INTENT_PROCESSING
+        
+        # Execute the complete Neural Loop
+        try:
+            # Process intent
+            intent_result = await self._handle_intent_processing()
+            if not intent_result.get("success"):
+                return intent_result
+            
+            # Handle composition
+            composition_result = await self._handle_composition()
+            return composition_result
+            
+        except Exception as e:
+            logger.error(f"Neural Loop processing error: {e}")
+            self.neural_loop_state = OrchestratorState.ERROR_RECOVERY
+            return await self._handle_error_recovery()
+    
+    async def process_dashboard_request(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Special handler for dashboard requests - bypass Neural Loop ambiguity"""
+        self.user_context = context
+        self.current_loop = NeuralLoopContext(
+            user_intent="dashboard",
+            raw_input="show dashboard",
+            missing_parameters=[],
+            clarification_questions=[],
+            plugin_capabilities=[]
+        )
+        
+        # Create dashboard UI directly
+        graph = ComponentGraph()
+        
+        # Main dashboard card
+        dashboard_card = graph.add_node("Card", {
+            "title": "📊 Dashboard",
+            "content": f"Welcome back, {context.get('name', 'User')}!",
+            "variant": "primary"
+        })
+        
+        # Stats section
+        stats_data = context.get('stats', {})
+        stats_card = graph.add_node("Card", {
+            "title": "📈 Quick Stats",
+            "content": f"Meetings: {stats_data.get('meetings', 0)} | Emails: {stats_data.get('pendingEmails', 0)} | Video: {stats_data.get('activeVideo', 0)} | Campaigns: {stats_data.get('campaigns', 0)}",
+            "variant": "info"
+        })
+        
+        # Recent activity
+        recent_activity = context.get('recent_activity', [])
+        if recent_activity:
+            activity_content = "Recent Activity:\n" + "\n".join(f"• {activity}" for activity in recent_activity)
+            activity_card = graph.add_node("Card", {
+                "title": "📝 Recent Activity",
+                "content": activity_content,
+                "variant": "secondary"
+            })
+            graph.add_child(dashboard_card, activity_card)
+        
+        # Upcoming events
+        upcoming_events = context.get('upcoming_events', [])
+        if upcoming_events:
+            events_content = "Upcoming:\n" + "\n".join(f"• {event}" for event in upcoming_events)
+            events_card = graph.add_node("Card", {
+                "title": "📅 Upcoming Events",
+                "content": events_content,
+                "variant": "secondary"
+            })
+            graph.add_child(dashboard_card, events_card)
+        
+        graph.add_child(dashboard_card, stats_card)
+        
+        return {
+            'type': 'final_response',
+            'ui': graph.to_json(),
+            'timestamp': datetime.now().isoformat(),
+            'intent': 'dashboard'
+        }
+    
+    async def _handle_intent_processing(self) -> Dict[str, Any]:
+        """Process user intent and detect what they want to do"""
+        try:
+            # Simple intent detection based on keywords
+            user_input = self.current_loop.raw_input.lower()
+            
+            if "dashboard" in user_input or "home" in user_input:
+                intent = "dashboard"
+            elif "email" in user_input:
+                intent = "email"
+            elif "calendar" in user_input or "event" in user_input:
+                intent = "calendar"
+            elif "meeting" in user_input:
+                intent = "meeting"
+            elif "task" in user_input:
+                intent = "task"
+            elif "analytics" in user_input or "report" in user_input:
+                intent = "analytics"
+            else:
+                intent = "general"
+            
+            self.current_loop.detected_intent = {"intent": intent, "confidence": 0.8}
+            self.neural_loop_state = OrchestratorState.COMPOSITION
+            
+            return {"success": True, "intent": intent}
+            
+        except Exception as e:
+            logger.error(f"Intent processing error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _handle_ambiguity_resolution(self) -> Dict[str, Any]:
+        """Handle ambiguous user input by asking clarifying questions"""
+        # For now, return a generic clarification
+        return {
+            "type": "clarification_request",
+            "response": "I need more information to help you. Could you please clarify what you'd like to do?",
+            "ui": {"component": {"Card": {"title": {"literalString": "❓ Clarification Needed"}, "content": {"literalString": "Please provide more details about what you'd like to do."}, "actions": [], "variant": "warning"}}}
+        }
+    
+    async def _handle_optimistic_execution(self) -> Dict[str, Any]:
+        """Execute optimistically to hide latency"""
+        # Create a skeleton UI while processing
+        skeleton = {
+            "type": "loading_response",
+            "response": "Processing your request...",
+            "ui": {"component": {"Card": {"title": {"literalString": "⏳ Processing"}, "content": {"literalString": "Please wait while I process your request..."}, "actions": [], "variant": "info"}}}
+        }
+        
+        return skeleton
+    
+    async def _handle_composition(self) -> Dict[str, Any]:
+        """Compose final response based on detected intent"""
+        intent = self.current_loop.detected_intent.get("intent", "general")
+        
+        if intent == "dashboard":
+            # Render dashboard UI
+            dashboard_ui = self.render_ui(UIState.DASHBOARD, self.user_context)
+            return {
+                "type": "final_response",
+                "response": "Here's your dashboard",
+                "ui": dashboard_ui.get("component", {}),
+                "intent": intent
+            }
+        else:
+            # Generic response for other intents
+            return {
+                "type": "final_response",
+                "response": f"I understand you want to work with {intent}. Here's what I can show you:",
+                "ui": {"component": {"Card": {"title": {"literalString": f"🎯 {intent.title()}"}, "content": {"literalString": f"Showing {intent} interface"}, "actions": [], "variant": "success"}}},
+                "intent": intent
+            }
+    
+    async def _handle_error_recovery(self) -> Dict[str, Any]:
+        """Handle errors gracefully"""
+        return {
+            "type": "error_response",
+            "response": "Sorry, I encountered an error processing your request.",
+            "ui": {"component": {"Card": {"title": {"literalString": "❌ Error"}, "content": {"literalString": "Something went wrong. Please try again."}, "actions": [], "variant": "error"}}}
+        }

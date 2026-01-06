@@ -69,6 +69,66 @@ class SymphonyOrchestrator:
             OrchestratorState.ERROR_RECOVERY: self._handle_error_recovery
         }
     
+    async def process_dashboard_request(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Special handler for dashboard requests - bypass Neural Loop ambiguity"""
+        self.user_context = context
+        self.current_loop = NeuralLoopContext(
+            user_intent="dashboard",
+            raw_input="show dashboard",
+            missing_parameters=[],
+            clarification_questions=[],
+            plugin_capabilities=[]
+        )
+        
+        # Create dashboard UI directly
+        graph = ComponentGraph()
+        
+        # Main dashboard card
+        dashboard_card = graph.add_node("Card", {
+            "title": "📊 Dashboard",
+            "content": f"Welcome back, {context.get('name', 'User')}!",
+            "variant": "primary"
+        })
+        
+        # Stats section
+        stats_data = context.get('stats', {})
+        stats_card = graph.add_node("Card", {
+            "title": "📈 Quick Stats",
+            "content": f"Meetings: {stats_data.get('meetings', 0)} | Emails: {stats_data.get('pendingEmails', 0)} | Video: {stats_data.get('activeVideo', 0)} | Campaigns: {stats_data.get('campaigns', 0)}",
+            "variant": "info"
+        })
+        
+        # Recent activity
+        recent_activity = context.get('recent_activity', [])
+        if recent_activity:
+            activity_content = "Recent Activity:\n" + "\n".join(f"• {activity}" for activity in recent_activity)
+            activity_card = graph.add_node("Card", {
+                "title": "📝 Recent Activity",
+                "content": activity_content,
+                "variant": "secondary"
+            })
+            graph.add_child(dashboard_card, activity_card)
+        
+        # Upcoming events
+        upcoming_events = context.get('upcoming_events', [])
+        if upcoming_events:
+            events_content = "Upcoming:\n" + "\n".join(f"• {event}" for event in upcoming_events)
+            events_card = graph.add_node("Card", {
+                "title": "📅 Upcoming Events",
+                "content": events_content,
+                "variant": "secondary"
+            })
+            graph.add_child(dashboard_card, events_card)
+        
+        graph.add_child(dashboard_card, stats_card)
+        
+        return {
+            'type': 'final_response',
+            'ui': graph.to_json(),
+            'timestamp': datetime.now().isoformat(),
+            'intent': 'dashboard'
+        }
+    
     async def process_user_intent(self, user_input: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Main entry point for Neural Loop processing
@@ -298,7 +358,7 @@ class SymphonyOrchestrator:
         
         return {
             'type': 'clarification_response',
-            'ui': graph.to_dict(),
+            'ui': graph.to_json(),
             'requires_user_input': True,
             'clarification_questions': self.current_loop.clarification_questions
         }
@@ -329,7 +389,7 @@ class SymphonyOrchestrator:
             "skeleton": True
         })
         
-        return graph.to_dict()
+        return graph.to_json()
     
     def _create_meeting_skeleton(self) -> Dict[str, Any]:
         """Create skeleton for meeting scheduling"""
@@ -342,7 +402,7 @@ class SymphonyOrchestrator:
             "skeleton": True
         })
         
-        return graph.to_dict()
+        return graph.to_json()
     
     async def _execute_plugin_capabilities(self) -> Dict[str, Any]:
         """Execute plugin capabilities for the detected intent"""
@@ -403,7 +463,7 @@ class SymphonyOrchestrator:
                 "variant": "success"
             })
         
-        return graph.to_dict()
+        return graph.to_json()
     
     def _create_error_boundary(self, error: Exception) -> Dict[str, Any]:
         """Create self-healing error boundary UI"""
@@ -438,7 +498,7 @@ class SymphonyOrchestrator:
         
         graph.add_child(error_card, recovery_actions)
         
-        return graph.to_dict()
+        return graph.to_json()
     
     def _create_content_skeleton(self) -> Dict[str, Any]:
         """Create skeleton for content viewing"""
@@ -451,7 +511,7 @@ class SymphonyOrchestrator:
             "skeleton": True
         })
         
-        return graph.to_dict()
+        return graph.to_json()
     
     def _create_chat_skeleton(self) -> Dict[str, Any]:
         """Create skeleton for chat responses"""
@@ -464,7 +524,7 @@ class SymphonyOrchestrator:
             "skeleton": True
         })
         
-        return graph.to_dict()
+        return graph.to_json()
     
     def _create_general_skeleton(self) -> Dict[str, Any]:
         """Create general purpose skeleton"""
@@ -477,4 +537,4 @@ class SymphonyOrchestrator:
             "skeleton": True
         })
         
-        return graph.to_dict()
+        return graph.to_json()
