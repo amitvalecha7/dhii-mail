@@ -1274,3 +1274,147 @@ class A2UIOrchestrator:
             "response": "Sorry, I encountered an error processing your request.",
             "ui": {"component": {"Card": {"title": {"literalString": "❌ Error"}, "content": {"literalString": "Something went wrong. Please try again."}, "actions": [], "variant": "error"}}}
         }
+
+    # Streaming Transport Support
+    async def process_streaming_event(self, event: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Process streaming events for real-time UI updates"""
+        try:
+            event_type = event.get("type")
+            user_id = context.get("user_id", "anonymous")
+            
+            logger.info(f"Processing streaming event: {event_type} for user {user_id}")
+            
+            if event_type == "skeleton":
+                # Process optimistic skeleton for immediate UI feedback
+                skeleton_composition = event.get("composition", {})
+                enhanced_ui = await self._enhance_skeleton_ui(skeleton_composition, context)
+                
+                return {
+                    "type": "skeleton_response",
+                    "ui": enhanced_ui,
+                    "progress": {"stage": "skeleton", "percentage": 25},
+                    "timestamp": datetime.now().isoformat(),
+                    "user_id": user_id
+                }
+                
+            elif event_type == "composition":
+                # Process final composition with actual data
+                final_composition = event.get("composition", {})
+                enhanced_ui = await self._enhance_final_ui(final_composition, context)
+                
+                return {
+                    "type": "composition_response", 
+                    "ui": enhanced_ui,
+                    "progress": {"stage": "composition", "percentage": 75},
+                    "timestamp": datetime.now().isoformat(),
+                    "user_id": user_id
+                }
+                
+            elif event_type == "update":
+                # Process incremental updates
+                update_data = event.get("data", {})
+                
+                return {
+                    "type": "update_response",
+                    "ui": update_data,
+                    "progress": {"stage": "updating", "percentage": event.get("progress", 50)},
+                    "timestamp": datetime.now().isoformat(),
+                    "user_id": user_id
+                }
+                
+            elif event_type == "progress":
+                # Handle progress updates
+                progress_data = event.get("progress", {})
+                
+                return {
+                    "type": "progress_response",
+                    "progress": progress_data,
+                    "message": event.get("message", "Processing..."),
+                    "timestamp": datetime.now().isoformat(),
+                    "user_id": user_id
+                }
+                
+            else:
+                # Generic event processing
+                return {
+                    "type": "generic_response",
+                    "event": event,
+                    "timestamp": datetime.now().isoformat(),
+                    "user_id": user_id
+                }
+                
+        except Exception as e:
+            logger.error(f"Error processing streaming event: {e}")
+            return {
+                "type": "error_response",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+                "user_id": context.get("user_id", "anonymous")
+            }
+    
+    async def _enhance_skeleton_ui(self, skeleton: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Enhance skeleton UI with user-specific optimizations"""
+        try:
+            user_id = context.get("user_id", "anonymous")
+            
+            # Add loading indicators and progressive enhancement
+            enhanced_skeleton = {
+                "component": {
+                    "Card": {
+                        "title": {"literalString": "🔄 Loading..."},
+                        "content": {"literalString": "Please wait while we prepare your interface"},
+                        "actions": [],
+                        "variant": "loading",
+                        "skeleton": True,
+                        "progressive": True
+                    }
+                },
+                "metadata": {
+                    "user_id": user_id,
+                    "stage": "skeleton",
+                    "estimated_completion": "2-3 seconds"
+                }
+            }
+            
+            # Merge with provided skeleton if available
+            if skeleton:
+                enhanced_skeleton.update(skeleton)
+                
+            return enhanced_skeleton
+            
+        except Exception as e:
+            logger.error(f"Error enhancing skeleton UI: {e}")
+            return skeleton  # Return original skeleton on error
+    
+    async def _enhance_final_ui(self, final_ui: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Enhance final UI with user-specific optimizations"""
+        try:
+            user_id = context.get("user_id", "anonymous")
+            user_name = context.get("user_name", "User")
+            
+            # Add personalization and optimization hints
+            enhanced_final = {
+                "component": final_ui.get("component", {}),
+                "metadata": {
+                    "user_id": user_id,
+                    "stage": "final",
+                    "personalized": True,
+                    "cached": False,
+                    "render_optimized": True
+                },
+                "performance": {
+                    "render_time_ms": 0,  # Will be filled by client
+                    "cached_components": 0,
+                    "fresh_components": 0
+                }
+            }
+            
+            # Add user-specific welcome message if it's a dashboard
+            if "dashboard" in str(final_ui).lower():
+                enhanced_final["welcome_message"] = f"Welcome back, {user_name}!"
+                
+            return enhanced_final
+            
+        except Exception as e:
+            logger.error(f"Error enhancing final UI: {e}")
+            return final_ui  # Return original final UI on error

@@ -4,9 +4,9 @@ Handles all A2UI endpoints with Neural Loop processing and Intent Engine
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, AsyncGenerator
 import json
 import logging
 from datetime import datetime
@@ -425,6 +425,102 @@ async def process_intent_endpoint(request: ProcessIntentRequest, current_user: d
             type="error_response",
             error=str(e)
         )
+
+# SSE Streaming Support
+async def sse_event_generator(session_id: str, user_id: str) -> AsyncGenerator[str, None]:
+    """Generate Server-Sent Events for real-time UI updates"""
+    try:
+        # Send initial connection event
+        yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id, 'timestamp': datetime.now().isoformat()})}\n\n"
+        
+        # Create streaming session with Liquid Glass Host
+        stream = await liquid_glass_host.create_stream(session_id)
+        
+        # Stream events from the orchestrator
+        async for event in stream:
+            if event.get("type") == "heartbeat":
+                yield f"data: {json.dumps(event)}\n\n"
+            else:
+                # Process UI updates through orchestrator
+                if event.get("type") in ["skeleton", "composition", "update"]:
+                    ui_data = await orchestrator.process_streaming_event(event, {"user_id": user_id})
+                    yield f"data: {json.dumps(ui_data)}\n\n"
+                else:
+                    yield f"data: {json.dumps(event)}\n\n"
+                    
+    except asyncio.CancelledError:
+        logger.info(f"SSE stream {session_id} cancelled")
+        yield f"data: {json.dumps({'type': 'disconnected', 'session_id': session_id, 'timestamp': datetime.now().isoformat()})}\n\n"
+    except Exception as e:
+        logger.error(f"SSE stream error for {session_id}: {e}")
+        yield f"data: {json.dumps({'type': 'error', 'error': str(e), 'timestamp': datetime.now().isoformat()})}\n\n"
+    finally:
+        logger.info(f"SSE stream {session_id} closed")
+
+@router.get("/stream/{session_id}")
+async def stream_ui_updates(session_id: str, current_user: dict = Depends(get_current_user_mock)):
+    """Server-Sent Events endpoint for real-time UI updates"""
+    try:
+        user_id = current_user.get("id", "anonymous")
+        logger.info(f"Starting SSE stream for session {session_id}, user {user_id}")
+        
+        return StreamingResponse(
+            sse_event_generator(session_id, user_id),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # Disable Nginx buffering
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Cache-Control",
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to create SSE stream: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create stream: {str(e)}")
+
+@router.post("/stream/{session_id}/event")
+async def send_stream_event(session_id: str, event: Dict[str, Any], current_user: dict = Depends(get_current_user_mock)):
+    """Send a custom event to a streaming session"""
+    try:
+        user_id = current_user.get("id", "anonymous")
+        logger.info(f"Sending event to stream {session_id}, user {user_id}: {event.get('type')}")
+        
+        # Add metadata to event
+        event["session_id"] = session_id
+        event["user_id"] = user_id
+        event["timestamp"] = datetime.now().isoformat()
+        
+        # Stream the event
+        await liquid_glass_host._stream_event(session_id, event)
+        
+        return {"status": "success", "session_id": session_id, "event_type": event.get("type")}
+    except Exception as e:
+        logger.error(f"Failed to send stream event: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send event: {str(e)}")
+
+@router.delete("/stream/{session_id}")
+async def close_stream(session_id: str, current_user: dict = Depends(get_current_user_mock)):
+    """Close a streaming session"""
+    try:
+        user_id = current_user.get("id", "anonymous")
+        logger.info(f"Closing stream {session_id} for user {user_id}")
+        
+        # Send close event to stream
+        await liquid_glass_host._stream_event(session_id, {
+            "type": "stream_closed",
+            "reason": "user_request",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # Remove stream from active streams
+        if session_id in liquid_glass_host.active_streams:
+            del liquid_glass_host.active_streams[session_id]
+        
+        return {"status": "success", "session_id": session_id, "message": "Stream closed"}
+    except Exception as e:
+        logger.error(f"Failed to close stream: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to close stream: {str(e)}")
 
 @router.post("/stream-intent")
 async def stream_intent_endpoint(request: ProcessIntentRequest, current_user: dict = Depends(get_current_user_mock)):
