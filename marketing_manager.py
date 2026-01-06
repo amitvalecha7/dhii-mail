@@ -12,6 +12,7 @@ from dataclasses import dataclass, asdict
 from fastapi import HTTPException
 from pydantic import BaseModel, EmailStr
 from enum import Enum
+from database import get_db
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -140,9 +141,9 @@ class UserEngagement(BaseModel):
     email: str
     last_activity: datetime
     engagement_score: float = 0.0
-    email_engagement: float = 0.0
-    website_visits: int = 0
-    conversion_events: int = 0
+    email_engagement: Dict[str, Any] = {}
+    website_visits: Dict[str, Any] = {}
+    conversion_events: List[Dict[str, Any]] = []
     total_revenue: float = 0.0
     preferred_time: Optional[str] = None
     preferred_day: Optional[str] = None
@@ -153,9 +154,7 @@ class MarketingManager:
     """Marketing Tools and Analytics Manager"""
     
     def __init__(self):
-        self.campaigns = {}  # In-memory storage for now
-        self.email_analytics = {}  # email_address -> campaign_id -> analytics
-        self.user_engagement = {}  # user_id -> engagement data
+        self.db = get_db()  # Database connection
         self.segments = {
             "all_users": [],
             "active_users": [],
@@ -201,7 +200,8 @@ class MarketingManager:
                 ab_test_variants=campaign_data.ab_test_variants
             )
             
-            self.campaigns[campaign_id] = campaign
+            # Save to database
+            self._save_campaign_to_db(campaign)
             
             logger.info(f"Created marketing campaign: {campaign_id} by {created_by}")
             return campaign
@@ -212,16 +212,16 @@ class MarketingManager:
     
     def get_campaign(self, campaign_id: str) -> MarketingCampaign:
         """Get campaign details"""
-        if campaign_id not in self.campaigns:
+        campaign = self._get_campaign_from_db(campaign_id)
+        if campaign is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        return self.campaigns[campaign_id]
+        return campaign
     
     def update_campaign(self, campaign_id: str, update_data: CampaignUpdate) -> MarketingCampaign:
         """Update campaign details"""
-        if campaign_id not in self.campaigns:
+        campaign = self._get_campaign_from_db(campaign_id)
+        if campaign is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        campaign = self.campaigns[campaign_id]
         
         # Update fields if provided
         if update_data.name is not None:
@@ -247,45 +247,62 @@ class MarketingManager:
         
         campaign.updated_at = datetime.now(timezone.utc)
         
+        # Update in database
+        self._update_campaign_in_db(campaign)
+        
         logger.info(f"Updated marketing campaign: {campaign_id}")
         return campaign
     
     def delete_campaign(self, campaign_id: str) -> bool:
         """Delete a campaign"""
-        if campaign_id not in self.campaigns:
+        # Check if campaign exists
+        campaign = self._get_campaign_from_db(campaign_id)
+        if campaign is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
         
-        del self.campaigns[campaign_id]
+        # Delete from database
+        query = "DELETE FROM marketing_campaigns WHERE id = ?"
+        self.db.execute_update(query, (campaign_id,))
+        
         logger.info(f"Deleted marketing campaign: {campaign_id}")
         return True
     
     def list_campaigns(self, user_email: str, status: Optional[CampaignStatus] = None) -> List[MarketingCampaign]:
         """List campaigns for a user"""
-        user_campaigns = []
-        for campaign in self.campaigns.values():
-            if campaign.created_by == user_email:
-                if status is None or campaign.status == status:
-                    user_campaigns.append(campaign)
-        return user_campaigns
+        try:
+            if status:
+                query = "SELECT * FROM marketing_campaigns WHERE created_by = ? AND status = ? ORDER BY created_at DESC"
+                results = self.db.execute_query(query, (user_email, status.value))
+            else:
+                query = "SELECT * FROM marketing_campaigns WHERE created_by = ? ORDER BY created_at DESC"
+                results = self.db.execute_query(query, (user_email,))
+            
+            return [self._row_to_campaign(row) for row in results]
+            
+        except Exception as e:
+            logger.error(f"Error listing campaigns: {e}")
+            return []
     
     def schedule_campaign(self, campaign_id: str, scheduled_time: datetime) -> MarketingCampaign:
         """Schedule a campaign for future delivery"""
-        if campaign_id not in self.campaigns:
+        campaign = self._get_campaign_from_db(campaign_id)
+        if campaign is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
         
-        campaign = self.campaigns[campaign_id]
         campaign.scheduled_time = scheduled_time
         campaign.status = CampaignStatus.SCHEDULED
+        
+        # Update in database
+        self._update_campaign_in_db(campaign)
         
         logger.info(f"Scheduled campaign {campaign_id} for {scheduled_time}")
         return campaign
     
     def send_campaign(self, campaign_id: str) -> MarketingCampaign:
         """Send a campaign immediately"""
-        if campaign_id not in self.campaigns:
+        campaign = self._get_campaign_from_db(campaign_id)
+        if campaign is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        campaign = self.campaigns[campaign_id]
         
         # Simulate sending emails
         campaign.status = CampaignStatus.SENT
@@ -294,6 +311,9 @@ class MarketingManager:
         campaign.metrics.emails_delivered = int(campaign.recipient_count * 0.95)  # 95% delivery rate
         campaign.metrics.emails_bounced = campaign.recipient_count - campaign.metrics.emails_delivered
         
+        # Update in database
+        self._update_campaign_in_db(campaign)
+        
         logger.info(f"Sent marketing campaign: {campaign_id} to {campaign.recipient_count} recipients")
         return campaign
     
@@ -301,17 +321,14 @@ class MarketingManager:
                          metadata: Optional[Dict[str, Any]] = None) -> EmailAnalytics:
         """Track email events (open, click, bounce, etc.)"""
         try:
-            # Create analytics entry if it doesn't exist
-            if email_address not in self.email_analytics:
-                self.email_analytics[email_address] = {}
-            
-            if campaign_id not in self.email_analytics[email_address]:
-                self.email_analytics[email_address][campaign_id] = EmailAnalytics(
+            # Get existing analytics or create new
+            analytics = self._get_email_analytics(email_address, campaign_id)
+            if analytics is None:
+                analytics = EmailAnalytics(
                     email_address=email_address,
                     campaign_id=campaign_id
                 )
             
-            analytics = self.email_analytics[email_address][campaign_id]
             current_time = datetime.now(timezone.utc)
             
             # Update based on event type
@@ -351,6 +368,9 @@ class MarketingManager:
                 if "location" in metadata:
                     analytics.location = metadata["location"]
             
+            # Save analytics to database
+            self._save_email_analytics(analytics)
+            
             # Update campaign metrics
             self._update_campaign_metrics(campaign_id, event_type)
             
@@ -363,10 +383,9 @@ class MarketingManager:
     
     def get_campaign_analytics(self, campaign_id: str) -> Dict[str, Any]:
         """Get detailed analytics for a campaign"""
-        if campaign_id not in self.campaigns:
+        campaign = self._get_campaign_from_db(campaign_id)
+        if campaign is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
-        
-        campaign = self.campaigns[campaign_id]
         
         # Calculate rates
         if campaign.metrics.emails_sent > 0:
@@ -375,11 +394,8 @@ class MarketingManager:
             campaign.metrics.bounce_rate = (campaign.metrics.emails_bounced / campaign.metrics.emails_sent) * 100
             campaign.metrics.unsubscribe_rate = (campaign.metrics.emails_unsubscribed / campaign.metrics.emails_sent) * 100
         
-        # Get individual email analytics
-        email_analytics_list = []
-        for email_data in self.email_analytics.values():
-            if campaign_id in email_data:
-                email_analytics_list.append(email_data[campaign_id])
+        # Get individual email analytics from database
+        email_analytics_list = self._get_email_analytics_for_campaign(campaign_id)
         
         return {
             "campaign_id": campaign_id,
@@ -397,15 +413,17 @@ class MarketingManager:
     
     def get_user_engagement(self, user_id: str) -> UserEngagement:
         """Get user engagement data"""
-        if user_id not in self.user_engagement:
+        engagement = self._get_user_engagement_from_db(user_id)
+        if engagement is None:
             # Create new engagement data
-            self.user_engagement[user_id] = UserEngagement(
+            engagement = UserEngagement(
                 user_id=user_id,
                 email="user@example.com",  # This would come from user data
                 last_activity=datetime.now(timezone.utc)
             )
+            self._save_user_engagement(engagement)
         
-        return self.user_engagement[user_id]
+        return engagement
     
     def update_user_engagement(self, user_id: str, engagement_data: Dict[str, Any]) -> UserEngagement:
         """Update user engagement metrics"""
@@ -432,6 +450,9 @@ class MarketingManager:
         
         # Calculate overall engagement score
         engagement.engagement_score = self._calculate_engagement_score(engagement)
+        
+        # Save to database
+        self._save_user_engagement(engagement)
         
         logger.info(f"Updated user engagement for {user_id}: score {engagement.engagement_score}")
         return engagement
@@ -551,14 +572,27 @@ class MarketingManager:
         """Calculate user engagement score (0-100)"""
         score = 0.0
         
-        # Email engagement (40% weight)
-        score += engagement.email_engagement * 0.4
+        # Email engagement (40% weight) - calculate from email_engagement dict
+        email_score = 0.0
+        if engagement.email_engagement:
+            # Use opens and clicks if available
+            opens = engagement.email_engagement.get('opens', 0)
+            clicks = engagement.email_engagement.get('clicks', 0)
+            email_score = min((opens * 0.5 + clicks * 1.0) / 10, 1.0) * 40
+        score += email_score
         
-        # Website visits (30% weight)
-        score += min(engagement.website_visits / 10, 1.0) * 30
+        # Website visits (30% weight) - calculate from website_visits dict
+        visit_score = 0.0
+        if engagement.website_visits:
+            count = engagement.website_visits.get('count', 0)
+            visit_score = min(count / 10, 1.0) * 30
+        score += visit_score
         
-        # Conversion events (30% weight)
-        score += min(engagement.conversion_events / 5, 1.0) * 30
+        # Conversion events (30% weight) - calculate from conversion_events list
+        conversion_score = 0.0
+        if engagement.conversion_events:
+            conversion_score = min(len(engagement.conversion_events) / 5, 1.0) * 30
+        score += conversion_score
         
         # Penalty for unsubscribing
         if engagement.unsubscribe_all:
@@ -587,6 +621,321 @@ class MarketingManager:
             return "Below Average"
         else:
             return "Poor"
+
+    def _save_campaign_to_db(self, campaign: MarketingCampaign) -> None:
+        """Save campaign to database"""
+        try:
+            query = """
+                INSERT INTO marketing_campaigns (
+                    id, name, description, campaign_type, status, subject_line, email_template,
+                    sender_email, sender_name, recipient_segments, recipient_count,
+                    scheduled_time, sent_time, created_by, created_at, updated_at,
+                    metrics_emails_sent, metrics_emails_delivered, metrics_emails_bounced,
+                    metrics_emails_opened, metrics_emails_clicked, metrics_emails_unsubscribed,
+                    metrics_emails_spam, metrics_open_rate, metrics_click_rate,
+                    metrics_bounce_rate, metrics_unsubscribe_rate, metrics_conversion_rate,
+                    metrics_revenue_generated, metrics_cost_per_email, metrics_roi,
+                    tags, is_ab_test, ab_test_variants
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            params = (
+                campaign.id, campaign.name, campaign.description, campaign.campaign_type.value,
+                campaign.status.value, campaign.subject_line, campaign.email_template,
+                campaign.sender_email, campaign.sender_name, json.dumps(campaign.recipient_segments),
+                campaign.recipient_count, campaign.scheduled_time, campaign.sent_time,
+                campaign.created_by, campaign.created_at, campaign.updated_at,
+                campaign.metrics.emails_sent, campaign.metrics.emails_delivered,
+                campaign.metrics.emails_bounced, campaign.metrics.emails_opened,
+                campaign.metrics.emails_clicked, campaign.metrics.emails_unsubscribed,
+                campaign.metrics.emails_spam, campaign.metrics.open_rate,
+                campaign.metrics.click_rate, campaign.metrics.bounce_rate,
+                campaign.metrics.unsubscribe_rate, campaign.metrics.conversion_rate,
+                campaign.metrics.revenue_generated, campaign.metrics.cost_per_email,
+                campaign.metrics.roi, json.dumps(campaign.tags), campaign.is_ab_test,
+                json.dumps(campaign.ab_test_variants)
+            )
+            
+            self.db.execute_update(query, params)
+            
+        except Exception as e:
+            logger.error(f"Error saving campaign to database: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to save campaign: {str(e)}")
+
+    def _get_campaign_from_db(self, campaign_id: str) -> Optional[MarketingCampaign]:
+        """Get campaign from database"""
+        try:
+            query = "SELECT * FROM marketing_campaigns WHERE id = ?"
+            results = self.db.execute_query(query, (campaign_id,))
+            
+            if not results:
+                return None
+            
+            row = results[0]
+            return self._row_to_campaign(row)
+            
+        except Exception as e:
+            logger.error(f"Error getting campaign from database: {e}")
+            return None
+
+    def _row_to_campaign(self, row: Dict[str, Any]) -> MarketingCampaign:
+        """Convert database row to MarketingCampaign object"""
+        return MarketingCampaign(
+            id=row['id'],
+            name=row['name'],
+            description=row['description'],
+            campaign_type=CampaignType(row['campaign_type']),
+            status=CampaignStatus(row['status']),
+            subject_line=row['subject_line'],
+            email_template=row['email_template'],
+            sender_email=row['sender_email'],
+            sender_name=row['sender_name'],
+            recipient_segments=row['recipient_segments'] if row['recipient_segments'] else [],
+            recipient_count=row['recipient_count'],
+            scheduled_time=row['scheduled_time'],
+            sent_time=row['sent_time'],
+            created_by=row['created_by'],
+            created_at=row['created_at'],
+            updated_at=row['updated_at'],
+            metrics=CampaignMetrics(
+                emails_sent=row['metrics_emails_sent'],
+                emails_delivered=row['metrics_emails_delivered'],
+                emails_bounced=row['metrics_emails_bounced'],
+                emails_opened=row['metrics_emails_opened'],
+                emails_clicked=row['metrics_emails_clicked'],
+                emails_unsubscribed=row['metrics_emails_unsubscribed'],
+                emails_spam=row['metrics_emails_spam'],
+                open_rate=row['metrics_open_rate'],
+                click_rate=row['metrics_click_rate'],
+                bounce_rate=row['metrics_bounce_rate'],
+                unsubscribe_rate=row['metrics_unsubscribe_rate'],
+                conversion_rate=row['metrics_conversion_rate'],
+                revenue_generated=row['metrics_revenue_generated'],
+                cost_per_email=row['metrics_cost_per_email'],
+                roi=row['metrics_roi']
+            ),
+            tags=row['tags'] if row['tags'] else [],
+            is_ab_test=bool(row['is_ab_test']),
+            ab_test_variants=row['ab_test_variants'] if row['ab_test_variants'] else []
+        )
+
+    def _update_campaign_in_db(self, campaign: MarketingCampaign) -> None:
+        """Update campaign in database"""
+        try:
+            query = """
+                UPDATE marketing_campaigns SET
+                    name = ?, description = ?, status = ?, subject_line = ?, email_template = ?,
+                    sender_email = ?, sender_name = ?, recipient_segments = ?, recipient_count = ?,
+                    scheduled_time = ?, sent_time = ?, updated_at = ?,
+                    metrics_emails_sent = ?, metrics_emails_delivered = ?, metrics_emails_bounced = ?,
+                    metrics_emails_opened = ?, metrics_emails_clicked = ?, metrics_emails_unsubscribed = ?,
+                    metrics_emails_spam = ?, metrics_open_rate = ?, metrics_click_rate = ?,
+                    metrics_bounce_rate = ?, metrics_unsubscribe_rate = ?, metrics_conversion_rate = ?,
+                    metrics_revenue_generated = ?, metrics_cost_per_email = ?, metrics_roi = ?,
+                    tags = ?, is_ab_test = ?, ab_test_variants = ?
+                WHERE id = ?
+            """
+            
+            params = (
+                campaign.name, campaign.description, campaign.status.value,
+                campaign.subject_line, campaign.email_template, campaign.sender_email,
+                campaign.sender_name, json.dumps(campaign.recipient_segments),
+                campaign.recipient_count, campaign.scheduled_time, campaign.sent_time,
+                campaign.updated_at, campaign.metrics.emails_sent,
+                campaign.metrics.emails_delivered, campaign.metrics.emails_bounced,
+                campaign.metrics.emails_opened, campaign.metrics.emails_clicked,
+                campaign.metrics.emails_unsubscribed, campaign.metrics.emails_spam,
+                campaign.metrics.open_rate, campaign.metrics.click_rate,
+                campaign.metrics.bounce_rate, campaign.metrics.unsubscribe_rate,
+                campaign.metrics.conversion_rate, campaign.metrics.revenue_generated,
+                campaign.metrics.cost_per_email, campaign.metrics.roi,
+                json.dumps(campaign.tags), campaign.is_ab_test,
+                json.dumps(campaign.ab_test_variants), campaign.id
+            )
+            
+            self.db.execute_update(query, params)
+            
+        except Exception as e:
+            logger.error(f"Error updating campaign in database: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to update campaign: {str(e)}")
+
+    def _get_email_analytics(self, email_address: str, campaign_id: str) -> Optional[EmailAnalytics]:
+        """Get email analytics from database"""
+        try:
+            query = "SELECT * FROM email_analytics WHERE email_address = ? AND campaign_id = ?"
+            results = self.db.execute_query(query, (email_address, campaign_id))
+            
+            if not results:
+                return None
+            
+            row = results[0]
+            return self._row_to_email_analytics(row)
+            
+        except Exception as e:
+            logger.error(f"Error getting email analytics from database: {e}")
+            return None
+
+    def _save_email_analytics(self, analytics: EmailAnalytics) -> None:
+        """Save email analytics to database"""
+        try:
+            # Check if analytics already exists
+            existing = self._get_email_analytics(analytics.email_address, analytics.campaign_id)
+            
+            if existing:
+                # Update existing analytics
+                query = """
+                    UPDATE email_analytics SET
+                        sent_time = ?, delivered_time = ?, opened_time = ?, clicked_time = ?,
+                        unsubscribe_time = ?, bounce_time = ?, spam_time = ?, status = ?,
+                        open_count = ?, click_count = ?, ip_address = ?, user_agent = ?,
+                        email_client = ?, device_type = ?, location = ?, updated_at = ?
+                    WHERE email_address = ? AND campaign_id = ?
+                """
+                params = (
+                    analytics.sent_time, analytics.delivered_time, analytics.opened_time,
+                    analytics.clicked_time, analytics.unsubscribe_time, analytics.bounce_time,
+                    analytics.spam_time, analytics.status.value, analytics.open_count,
+                    analytics.click_count, analytics.ip_address, analytics.user_agent,
+                    analytics.email_client, analytics.device_type, analytics.location,
+                    datetime.now(timezone.utc), analytics.email_address, analytics.campaign_id
+                )
+            else:
+                # Insert new analytics
+                query = """
+                    INSERT INTO email_analytics (
+                        email_address, campaign_id, sent_time, delivered_time, opened_time,
+                        clicked_time, unsubscribe_time, bounce_time, spam_time, status,
+                        open_count, click_count, ip_address, user_agent, email_client,
+                        device_type, location, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                params = (
+                    analytics.email_address, analytics.campaign_id, analytics.sent_time,
+                    analytics.delivered_time, analytics.opened_time, analytics.clicked_time,
+                    analytics.unsubscribe_time, analytics.bounce_time, analytics.spam_time,
+                    analytics.status.value, analytics.open_count, analytics.click_count,
+                    analytics.ip_address, analytics.user_agent, analytics.email_client,
+                    analytics.device_type, analytics.location, datetime.now(timezone.utc),
+                    datetime.now(timezone.utc)
+                )
+            
+            self.db.execute_update(query, params)
+            
+        except Exception as e:
+            logger.error(f"Error saving email analytics to database: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to save email analytics: {str(e)}")
+
+    def _row_to_email_analytics(self, row: Dict[str, Any]) -> EmailAnalytics:
+        """Convert database row to EmailAnalytics object"""
+        return EmailAnalytics(
+            email_address=row['email_address'],
+            campaign_id=row['campaign_id'],
+            sent_time=row['sent_time'],
+            delivered_time=row['delivered_time'],
+            opened_time=row['opened_time'],
+            clicked_time=row['clicked_time'],
+            unsubscribe_time=row['unsubscribe_time'],
+            bounce_time=row['bounce_time'],
+            spam_time=row['spam_time'],
+            status=EmailStatus(row['status']),
+            open_count=row['open_count'],
+            click_count=row['click_count'],
+            ip_address=row['ip_address'],
+            user_agent=row['user_agent'],
+            email_client=row['email_client'],
+            device_type=row['device_type'],
+            location=row['location']
+        )
+
+    def _get_email_analytics_for_campaign(self, campaign_id: str) -> List[EmailAnalytics]:
+        """Get all email analytics for a campaign"""
+        try:
+            query = "SELECT * FROM email_analytics WHERE campaign_id = ?"
+            results = self.db.execute_query(query, (campaign_id,))
+            return [self._row_to_email_analytics(row) for row in results]
+            
+        except Exception as e:
+            logger.error(f"Error getting email analytics for campaign: {e}")
+            return []
+
+    def _get_user_engagement_from_db(self, user_id: str) -> Optional[UserEngagement]:
+        """Get user engagement from database"""
+        try:
+            query = "SELECT * FROM user_engagement WHERE user_id = ?"
+            results = self.db.execute_query(query, (user_id,))
+            
+            if not results:
+                return None
+            
+            row = results[0]
+            return self._row_to_user_engagement(row)
+            
+        except Exception as e:
+            logger.error(f"Error getting user engagement from database: {e}")
+            return None
+
+    def _save_user_engagement(self, engagement: UserEngagement) -> None:
+        """Save user engagement to database"""
+        try:
+            # Check if engagement already exists
+            existing = self._get_user_engagement_from_db(engagement.user_id)
+            
+            if existing:
+                # Update existing engagement
+                query = """
+                    UPDATE user_engagement SET
+                        email = ?, email_engagement = ?, website_visits = ?, conversion_events = ?,
+                        total_revenue = ?, preferred_time = ?, preferred_day = ?, unsubscribe_all = ?,
+                        email_preferences = ?, engagement_score = ?, last_activity = ?, updated_at = ?
+                    WHERE user_id = ?
+                """
+                params = (
+                    engagement.email, json.dumps(engagement.email_engagement), json.dumps(engagement.website_visits),
+                    json.dumps(engagement.conversion_events), engagement.total_revenue,
+                    engagement.preferred_time, engagement.preferred_day, engagement.unsubscribe_all,
+                    json.dumps(engagement.email_preferences), engagement.engagement_score,
+                    engagement.last_activity, datetime.now(timezone.utc), engagement.user_id
+                )
+            else:
+                # Insert new engagement
+                query = """
+                    INSERT INTO user_engagement (
+                        user_id, email, email_engagement, website_visits, conversion_events,
+                        total_revenue, preferred_time, preferred_day, unsubscribe_all,
+                        email_preferences, engagement_score, last_activity, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                params = (
+                    engagement.user_id, engagement.email, json.dumps(engagement.email_engagement),
+                    json.dumps(engagement.website_visits), json.dumps(engagement.conversion_events),
+                    engagement.total_revenue, engagement.preferred_time, engagement.preferred_day,
+                    engagement.unsubscribe_all, json.dumps(engagement.email_preferences),
+                    engagement.engagement_score, engagement.last_activity,
+                    datetime.now(timezone.utc), datetime.now(timezone.utc)
+                )
+            
+            self.db.execute_update(query, params)
+            
+        except Exception as e:
+            logger.error(f"Error saving user engagement to database: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to save user engagement: {str(e)}")
+
+    def _row_to_user_engagement(self, row: Dict[str, Any]) -> UserEngagement:
+        """Convert database row to UserEngagement object"""
+        return UserEngagement(
+            user_id=row['user_id'],
+            email=row['email'],
+            email_engagement=row['email_engagement'] if row['email_engagement'] else {},
+            website_visits=row['website_visits'] if row['website_visits'] else {},
+            conversion_events=row['conversion_events'] if row['conversion_events'] else [],
+            total_revenue=row['total_revenue'],
+            preferred_time=row['preferred_time'],
+            preferred_day=row['preferred_day'],
+            unsubscribe_all=row['unsubscribe_all'],
+            email_preferences=row['email_preferences'] if row['email_preferences'] else {},
+            engagement_score=row['engagement_score'],
+            last_activity=row['last_activity']
+        )
 
 # Global marketing manager instance
 marketing_manager = MarketingManager()

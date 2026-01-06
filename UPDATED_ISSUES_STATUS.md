@@ -42,15 +42,43 @@
 
 **Next Steps**: Review and align CORS settings with security manifesto
 
-### Issue #30: Database Persistence for Marketing Manager ⚠️
-**Status**: OPEN → NEEDS REVIEW  
+### Issue #30: Database Persistence for Marketing Manager ✅
+**Status**: OPEN → COMPLETED ✅  
 **Priority**: P1  
+**Date**: 2026-01-06  
 **Description**: Implement database persistence for Marketing Manager functionality
 
-**Current Status**: 
-- Database infrastructure exists and working
-- Marketing Manager plugin may need persistence layer
-- Need to verify data models and storage requirements
+**Deliverables Completed**:
+- ✅ Replaced in-memory storage in `marketing_manager.py` with database integration using `get_db()` connection pool
+- ✅ Created 3 marketing-specific database tables (`marketing_campaigns`, `email_analytics`, `user_engagement`) with proper indexes
+- ✅ Added CRUD helper methods for database operations (`_save_campaign_to_db`, `_get_campaign_from_db`, `_update_campaign_in_db`, etc.)
+- ✅ Rewrote core marketing methods to use persistent storage:
+  - `create_campaign()` - Stores campaigns in database with JSON serialization for nested fields
+  - `get_campaign()` - Retrieves campaigns from database with proper row-to-object conversion
+  - `update_campaign()` - Updates campaigns in database using `CampaignUpdate` model
+  - `delete_campaign()` - Deletes campaigns from database
+  - `list_campaigns()` - Lists campaigns filtered by user
+  - `get_user_engagement()` - Retrieves user engagement data
+  - `update_user_engagement()` - Updates user engagement with score calculation
+- ✅ Updated `UserEngagement` model to match database schema (Dict types for JSON fields)
+- ✅ Fixed engagement score calculation to work with complex data structures
+- ✅ Implemented thread-safe connection pooling via `DatabaseManager`
+- ✅ Added comprehensive test script `test_marketing_db_integration.py` validating all functionality
+- ✅ All database operations use parameterized queries to prevent SQL injection
+- ✅ JSON serialization handled properly for nested fields (recipient_segments, tags, ab_test_variants)
+
+**Files Modified**:
+- `marketing_manager.py` - Complete database integration
+- `database/schema.sql` - Added marketing tables and indexes
+- `test_marketing_db_integration.py` - Created comprehensive test suite
+
+**Test Results**: ✅ All database integration tests passing
+- Campaign creation, retrieval, update, listing, and deletion working
+- User engagement tracking and scoring working
+- Marketing dashboard functionality working
+- All operations persist to database correctly
+
+**Next Steps**: Issue #30 is now complete and ready for production use
 
 ### Issue #29: AI Agents Consolidation ⚠️
 **Status**: OPEN → NEEDS REVIEW  
@@ -113,9 +141,9 @@
 
 ## 📋 Priority Order for Next Steps
 
-1. **Issue #33**: CORS and Security Alignment (P1)
+1. **Issue #33**: CORS and Security Alignment (P1) ✅ COMPLETED
 2. **Issue #27**: Streaming Transport for A2UI (P1)  
-3. **Issue #30**: Database Persistence for Marketing Manager (P1)
+3. **Issue #30**: Database Persistence for Marketing Manager (P1) ✅ COMPLETED
 4. **Issue #29**: AI Agents Consolidation (P2)
 5. **Issue #28**: Tool Registry Pattern Implementation (P2)
 6. **Kernel API Integration**: Expose kernel functionality via HTTP
