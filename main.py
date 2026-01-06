@@ -10,6 +10,7 @@ from a2ui_integration.core.logging import get_logger
 from middleware.logging_middleware import setup_logging_middleware
 from middleware.apm import setup_apm
 from error_handler import ErrorHandler, ErrorCategory
+from error_tracking_service import ErrorTrackingService, ErrorContext, get_error_tracking_service
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -116,6 +117,80 @@ app.mount("/auth", auth_app)
 from a2ui_integration.a2ui_router import router as a2ui_router
 app.include_router(a2ui_router)
 
+# Error Tracking API Endpoints
+@app.get("/api/v1/errors/summary")
+async def get_error_summary(hours: int = 24):
+    """Get error summary for the last N hours"""
+    try:
+        error_tracking_service = get_error_tracking_service()
+        summary = error_tracking_service.get_error_summary(hours)
+        return summary
+    except Exception as e:
+        logger.error(f"Failed to get error summary: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to retrieve error summary"}
+        )
+
+@app.get("/api/v1/errors/{error_id}")
+async def get_error_details(error_id: int):
+    """Get detailed information about a specific error"""
+    try:
+        error_tracking_service = get_error_tracking_service()
+        details = error_tracking_service.get_error_details(error_id)
+        if details is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "Error not found"}
+            )
+        return details
+    except Exception as e:
+        logger.error(f"Failed to get error details: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to retrieve error details"}
+        )
+
+@app.post("/api/v1/errors/{error_id}/acknowledge")
+async def acknowledge_error(error_id: int, user_id: str):
+    """Acknowledge an error"""
+    try:
+        error_tracking_service = get_error_tracking_service()
+        success = error_tracking_service.acknowledge_error(error_id, user_id)
+        if success:
+            return {"message": "Error acknowledged successfully"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to acknowledge error"}
+            )
+    except Exception as e:
+        logger.error(f"Failed to acknowledge error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to acknowledge error"}
+        )
+
+@app.post("/api/v1/errors/{error_id}/resolve")
+async def resolve_error(error_id: int, user_id: str, resolution_notes: str = ""):
+    """Mark an error as resolved"""
+    try:
+        error_tracking_service = get_error_tracking_service()
+        success = error_tracking_service.resolve_error(error_id, user_id, resolution_notes)
+        if success:
+            return {"message": "Error resolved successfully"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to resolve error"}
+            )
+    except Exception as e:
+        logger.error(f"Failed to resolve error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Failed to resolve error"}
+        )
+
 # Plugin Registry Proxy
 import httpx
 from fastapi import HTTPException
@@ -215,16 +290,28 @@ async def global_exception_handler(request: Request, exc: Exception):
     and returns a standardized JSON response.
     """
     try:
-        # Create context from request
-        context = {
-            "path": str(request.url.path),
-            "method": str(request.method),
-            "client_host": request.client.host if request.client else "unknown"
-        }
+        # Create enhanced error context
+        error_context = ErrorContext(
+            user_id=getattr(request.state, 'user_id', None),
+            session_id=getattr(request.state, 'session_id', None),
+            request_id=getattr(request.state, 'request_id', None),
+            endpoint=str(request.url.path),
+            method=str(request.method),
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else "unknown",
+            environment=os.environ.get("ENVIRONMENT", "development"),
+            version=os.environ.get("APP_VERSION", "0.1.0"),
+            server_name=os.environ.get("SERVER_NAME", "localhost"),
+            deployment_id=os.environ.get("DEPLOYMENT_ID", "unknown")
+        )
         
         # Handle error using centralized ErrorHandler
         # This logs the error structurally and returns a standardized AppError
-        app_error = ErrorHandler.handle_error(exc, context=context)
+        app_error = ErrorHandler.handle_error(exc, context=error_context.to_dict())
+        
+        # Track error with comprehensive metadata
+        error_tracking_service = get_error_tracking_service()
+        await error_tracking_service.track_error(app_error, error_context)
         
         # Determine HTTP status code based on error category
         status_code = 500
