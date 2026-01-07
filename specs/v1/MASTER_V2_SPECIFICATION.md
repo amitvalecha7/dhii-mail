@@ -125,7 +125,46 @@ Authentication is centralized in the Kernel, not Plugins.
 
 ---
 
-## 6. Project Structure 2.0 (Physical Layout)
+## 6. Implementation Roadmap (GitHub Issues)
+
+### Phase 6.1: Framework 2.0 Foundation
+*   **#85**: Core Contracts & Types (`PluginInterface`, `ExecutionContext`)
+*   **#88**: Kernel PluginManager v2 (Async Lifecycle)
+*   **#89**: Dev Tools CLI (`create`, `validate`, `bundle`)
+*   **#90**: Migrate Email Plugin to v2
+
+### Phase 5: V1 Critical Path
+*   **Transport Layer**:
+    *   #82: Email Sync Engine (✅ Implemented)
+    *   #81: Calendar Sync Engine
+*   **Intelligence Layer**:
+    *   #78: Intelligence Data Processor (LLM Analysis)
+*   **Application Layer**:
+    *   #84: Symphony Orchestrator (Backend)
+    *   #83: Liquid Glass Component Host (Frontend)
+*   **Persistence Layer**:
+    *   #80: Persistence Migration (SQLite + Encrypted Secrets)
+
+### Phase 2-4: Plugin Ecosystem (30+ Issues)
+*   **Core OS**: Email (#35 ✅), Calendar (#36 ✅), Meetings (#37 ✅)
+*   **Bridges**: WhatsApp (#38 ✅), Teams (#39 ✅)
+*   **Business**: CRM (#40 ✅), Finance (#41), Projects (#42), Legal (#43), Marketing (#50)
+*   **Social**: Dhii-Connect (#44), Sync-Chat (#45)
+*   **Creative**: Writer (#46), Pixel (#47), Brand (#48)
+*   **Dev Tools**: Dev-Hub (#49)
+
+### Infrastructure & Architecture (Completed)
+*   #1: A2UI Standard Router ✅
+*   #2: Replace Custom Frontend ✅
+*   #23: Core Kernel Refactor ✅
+*   #24: Shared Services ✅
+*   #34: Lazy Loading ✅
+*   #65: Glass Wall Sandbox ✅
+*   #76: React Frontend Integration ✅
+
+---
+
+## 7. Project Structure 2.0 (Physical Layout)
 
 ```text
 a2ui_integration/
