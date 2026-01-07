@@ -102,6 +102,15 @@ def create_ui_response_from_orchestrator(ui_data: Dict[str, Any], data: Dict[str
             error=ui_data.get("error"),
             recovery_options=ui_data.get("recovery_options", [])
         )
+    elif ui_data.get("adjacencyList"):
+        # A2UI adjacency list format
+        return UIResponse(
+            component=ui_data.get("adjacencyList", {}),
+            state_info=ui_data.get("state_info", {}),
+            timestamp=ui_data.get("timestamp", datetime.now().isoformat()),
+            data=data or {},
+            type="adjacency_list"
+        )
     else:
         # Default final response or legacy format
         return UIResponse(

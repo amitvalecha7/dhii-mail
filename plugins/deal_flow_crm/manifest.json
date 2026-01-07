@@ -1,4 +1,5 @@
 {
+    "id": "deal_flow_crm",
     "name": "Deal-Flow CRM",
     "version": "1.0.0",
     "description": "Comprehensive deal flow and pipeline management plugin for dhii Mail",

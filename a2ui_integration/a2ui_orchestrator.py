@@ -152,38 +152,43 @@ Be helpful, professional, and provide clear actionable responses."""
         renderer = renderers.get(state, self._render_dashboard)
         content_result = renderer()
         
-        # Update AppShell active tab based on state
-        self._update_appshell_tab(state)
+        # Build complete adjacency list with AppShell
+        graph = ComponentGraph()
         
-        # Create AppShell layout
-        appshell_layout = self.appshell.create_layout_component("three_pane")
-        
-        # Update main pane with the actual content
-        main_content = content_result.get("component", {})
-        self.appshell.update_pane_content("main_pane", main_content)
-        
-        # Update sidebar pane with navigation based on state
-        sidebar_content = self._create_sidebar_content(state)
-        self.appshell.update_pane_content("sidebar_pane", sidebar_content)
-        
-        # Update details pane with contextual content
-        details_content = self._create_details_content(state)
-        self.appshell.update_pane_content("details_pane", details_content)
-        
-        # Recreate AppShell with updated content
-        appshell_layout = self.appshell.create_layout_component("three_pane")
-        
-        # Create unified AppShell component
-        component = {
-            "type": "appshell",
-            "layout": appshell_layout,
+        # Create AppShell root node
+        appshell_id = graph.add_node("AppShell", {
+            "layout": "three_pane",
             "navigation": self._get_navigation_bar(),
             "chat_component": self._get_chat_component()
-        }
+        })
         
-        # Return unified format
+        # Add main content
+        main_content = content_result.get("component", {})
+        main_content_id = graph.add_node("ContentPane", {
+            "pane": "main_pane",
+            "content": main_content
+        })
+        graph.add_child(appshell_id, main_content_id)
+        
+        # Add sidebar content
+        sidebar_content = self._create_sidebar_content(state)
+        sidebar_content_id = graph.add_node("ContentPane", {
+            "pane": "sidebar_pane", 
+            "content": sidebar_content
+        })
+        graph.add_child(appshell_id, sidebar_content_id)
+        
+        # Add details content
+        details_content = self._create_details_content(state)
+        details_content_id = graph.add_node("ContentPane", {
+            "pane": "details_pane",
+            "content": details_content
+        })
+        graph.add_child(appshell_id, details_content_id)
+        
+        # Return A2UI-compliant adjacency list format
         return {
-            "component": component,
+            "adjacencyList": graph.to_adjacency_list(),
             "state_info": self.state_machine.get_state_info()
         }
     
@@ -237,17 +242,9 @@ Be helpful, professional, and provide clear actionable responses."""
         
         graph.set_root(main_layout_id)
         
-        # Create unified AppShell component
-        component = {
-            "type": "appshell",
-            "layout": graph.to_json(),
-            "navigation": self._get_navigation_bar(),
-            "chat_component": self._get_chat_component()
-        }
-        
+        # Return adjacency list format
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_email_inbox(self) -> Dict[str, Any]:
@@ -315,8 +312,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_email_compose(self) -> Dict[str, Any]:
@@ -359,8 +355,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_email_detail(self) -> Dict[str, Any]:
@@ -420,8 +415,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_calendar(self) -> Dict[str, Any]:
@@ -474,8 +468,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_meeting_list(self) -> Dict[str, Any]:
@@ -550,8 +543,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_meeting_detail(self) -> Dict[str, Any]:
@@ -641,8 +633,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_meeting_book(self) -> Dict[str, Any]:
@@ -714,8 +705,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_task_board(self) -> Dict[str, Any]:
@@ -771,8 +761,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_analytics(self) -> Dict[str, Any]:
@@ -839,8 +828,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_settings(self) -> Dict[str, Any]:
@@ -889,8 +877,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return {
-            "component": component,
-            "state_info": self.state_machine.get_state_info()
+            "adjacencyList": graph.to_adjacency_list()
         }
     
     def _render_chat(self) -> Dict[str, Any]:
