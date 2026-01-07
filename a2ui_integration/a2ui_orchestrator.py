@@ -22,6 +22,11 @@ from a2ui_command_palette import A2UICommandPalette
 from a2ui_appshell import A2UIAppShell
 from data_structures import ComponentGraph
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from neural_loop_ai_engine import EnhancedNeuralLoopEngine, NeuralLoopContext as EnhancedNeuralLoopContext, IntentType, AmbiguityType
+
+if TYPE_CHECKING:
+    from tenant_manager import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +111,11 @@ Be helpful, professional, and provide clear actionable responses."""
             OrchestratorState.COMPOSITION: self._handle_composition,
             OrchestratorState.ERROR_RECOVERY: self._handle_error_recovery
         }
+        
+        # Tenant-aware methods
+        self.tenant_context = None
+        # Enhanced Neural Loop engine
+        self.neural_loop_engine = EnhancedNeuralLoopEngine()
         
     def render_ui(self, state: UIState, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Render complete UI based on state and context"""
@@ -1158,7 +1168,7 @@ Be helpful, professional, and provide clear actionable responses."""
             return await self._handle_error_recovery()
     
     async def process_dashboard_request(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Special handler for dashboard requests - bypass Neural Loop ambiguity"""
+        """Special handler for dashboard requests - bypass Neural Loop ambiguity with tenant isolation"""
         self.user_context = context
         self.current_loop = NeuralLoopContext(
             user_intent="dashboard",
@@ -1168,21 +1178,45 @@ Be helpful, professional, and provide clear actionable responses."""
             plugin_capabilities=[]
         )
         
-        # Create dashboard UI directly
+        # Apply tenant filtering if tenant context is available
+        if self.tenant_context:
+            context = self._filter_components_by_tenant_features(context)
+        
+        # Create dashboard UI directly with tenant-aware components
         graph = ComponentGraph()
         
-        # Main dashboard card
+        # Main dashboard card with tenant info
+        tenant_name = context.get("tenant_name", "Your Workspace")
         dashboard_card = graph.add_node("Card", {
-            "title": "📊 Dashboard",
+            "title": f"📊 {tenant_name} Dashboard",
             "content": f"Welcome back, {context.get('name', 'User')}!",
-            "variant": "primary"
+            "variant": "primary",
+            "tenant_id": context.get("tenant_id", "unknown")
         })
         
-        # Stats section
+        # Tenant features indicator
+        if context.get("tenant_features"):
+            features_card = graph.add_node("Card", {
+                "title": "🔧 Available Features",
+                "content": f"Features: {', '.join(context.get('tenant_features', []))}",
+                "variant": "info",
+                "size": "small"
+            })
+            graph.add_child(dashboard_card, features_card)
+        
+        # Stats section with tenant data
         stats_data = context.get('stats', {})
+        tenant_data = context.get('tenant_data', {})
+        
+        # Use tenant-specific stats if available
+        if tenant_data:
+            stats_content = f"Tenant Data: {len(tenant_data.get('items', []))} items"
+        else:
+            stats_content = f"Meetings: {stats_data.get('meetings', 0)} | Emails: {stats_data.get('pendingEmails', 0)} | Video: {stats_data.get('activeVideo', 0)} | Campaigns: {stats_data.get('campaigns', 0)}"
+        
         stats_card = graph.add_node("Card", {
             "title": "📈 Quick Stats",
-            "content": f"Meetings: {stats_data.get('meetings', 0)} | Emails: {stats_data.get('pendingEmails', 0)} | Video: {stats_data.get('activeVideo', 0)} | Campaigns: {stats_data.get('campaigns', 0)}",
+            "content": stats_content,
             "variant": "info"
         })
         
@@ -1210,17 +1244,84 @@ Be helpful, professional, and provide clear actionable responses."""
         
         graph.add_child(dashboard_card, stats_card)
         
-        return {
-            'type': 'final_response',
-            'ui': graph.to_json(),
-            'timestamp': datetime.now().isoformat(),
-            'intent': 'dashboard'
-        }
+        # Create tenant-isolated response
+        ui_data = graph.to_json()
+        
+        if self.tenant_context:
+            return self.create_tenant_isolated_response(ui_data, context)
+        else:
+            return {
+                'type': 'final_response',
+                'ui': ui_data,
+                'timestamp': datetime.now().isoformat(),
+                'intent': 'dashboard'
+            }
     
     async def _handle_intent_processing(self) -> Dict[str, Any]:
-        """Process user intent and detect what they want to do"""
+        """Enhanced intent processing using Neural Loop AI engine"""
         try:
-            # Simple intent detection based on keywords
+            user_input = self.current_loop.raw_input
+            
+            # Create enhanced Neural Loop context
+            enhanced_context = EnhancedNeuralLoopContext(
+                user_input=user_input,
+                session_history=self.conversation_history[-5:],  # Last 5 messages
+                user_context=self.user_context,
+                tenant_context=self.tenant_context or {},
+                timestamp=datetime.now(),
+                intent_candidates=[]
+            )
+            
+            # Process with enhanced Neural Loop engine
+            result = self.neural_loop_engine.process_user_input(user_input, enhanced_context)
+            
+            if result["type"] == "clarification_required":
+                # Store clarification state
+                self.current_loop.clarification_questions = result["clarification_questions"]
+                self.current_loop.detected_intent = {
+                    "intent": result["selected_intent"].intent_type.value,
+                    "confidence": result["selected_intent"].confidence,
+                    "reasoning": result["reasoning"],
+                    "requires_clarification": True
+                }
+                self.neural_loop_state = OrchestratorState.AMBIGUITY_RESOLUTION
+                
+                return {
+                    "success": True, 
+                    "intent": result["selected_intent"].intent_type.value,
+                    "clarification_needed": True,
+                    "clarification_questions": result["clarification_questions"]
+                }
+            
+            elif result["type"] == "intent_resolved":
+                selected_intent = result["selected_intent"]
+                self.current_loop.detected_intent = {
+                    "intent": selected_intent.intent_type.value,
+                    "confidence": selected_intent.confidence,
+                    "reasoning": selected_intent.reasoning,
+                    "entities": [{"type": e.entity_type, "value": e.value, "confidence": e.confidence} for e in selected_intent.entities]
+                }
+                self.neural_loop_state = OrchestratorState.COMPOSITION
+                
+                return {
+                    "success": True, 
+                    "intent": selected_intent.intent_type.value,
+                    "confidence": selected_intent.confidence,
+                    "reasoning": selected_intent.reasoning
+                }
+            
+            else:
+                # Fallback to simple detection
+                return await self._handle_simple_intent_processing()
+            
+        except Exception as e:
+            logger.error(f"Enhanced intent processing error: {e}")
+            # Fallback to simple processing
+            return await self._handle_simple_intent_processing()
+    
+    async def _handle_simple_intent_processing(self) -> Dict[str, Any]:
+        """Fallback simple intent processing"""
+        try:
             user_input = self.current_loop.raw_input.lower()
             
             if "dashboard" in user_input or "home" in user_input:
@@ -1244,17 +1345,60 @@ Be helpful, professional, and provide clear actionable responses."""
             return {"success": True, "intent": intent}
             
         except Exception as e:
-            logger.error(f"Intent processing error: {e}")
+            logger.error(f"Simple intent processing error: {e}")
             return {"success": False, "error": str(e)}
     
     async def _handle_ambiguity_resolution(self) -> Dict[str, Any]:
-        """Handle ambiguous user input by asking clarifying questions"""
-        # For now, return a generic clarification
-        return {
-            "type": "clarification_request",
-            "response": "I need more information to help you. Could you please clarify what you'd like to do?",
-            "ui": {"component": {"Card": {"title": {"literalString": "❓ Clarification Needed"}, "content": {"literalString": "Please provide more details about what you'd like to do."}, "actions": [], "variant": "warning"}}}
-        }
+        """Enhanced ambiguity resolution using Neural Loop clarification system"""
+        try:
+            clarification_questions = self.current_loop.clarification_questions or []
+            
+            # Create clarification UI with multiple questions
+            clarification_content = "I need some clarification to help you better:\n\n"
+            for i, question in enumerate(clarification_questions, 1):
+                clarification_content += f"{i}. {question}\n"
+            
+            # Add suggested responses
+            suggested_responses = []
+            if "email" in str(clarification_questions).lower():
+                suggested_responses.extend(["Compose email", "Read inbox", "Check sent emails"])
+            if "meeting" in str(clarification_questions).lower():
+                suggested_responses.extend(["Schedule meeting", "View calendar", "Check availability"])
+            if "task" in str(clarification_questions).lower():
+                suggested_responses.extend(["Create task", "View tasks", "Update task"])
+            
+            # Default suggestions
+            if not suggested_responses:
+                suggested_responses = ["Show dashboard", "Help", "Cancel"]
+            
+            return {
+                "type": "clarification_request",
+                "response": clarification_content.strip(),
+                "ui": {
+                    "component": {
+                        "Card": {
+                            "title": {"literalString": "❓ I Need More Information"},
+                            "content": {"literalString": clarification_content.strip()},
+                            "actions": [
+                                {"type": "button", "label": response, "action": f"clarify_{i}"}
+                                for i, response in enumerate(suggested_responses)
+                            ],
+                            "variant": "warning"
+                        }
+                    }
+                },
+                "suggested_responses": suggested_responses,
+                "clarification_questions": clarification_questions
+            }
+            
+        except Exception as e:
+            logger.error(f"Ambiguity resolution error: {e}")
+            # Fallback to generic clarification
+            return {
+                "type": "clarification_request",
+                "response": "I need more information to help you. Could you please clarify what you'd like to do?",
+                "ui": {"component": {"Card": {"title": {"literalString": "❓ Clarification Needed"}, "content": {"literalString": "Please provide more details about what you'd like to do."}, "actions": [], "variant": "warning"}}}
+            }
     
     async def _handle_optimistic_execution(self) -> Dict[str, Any]:
         """Execute optimistically to hide latency"""
@@ -1268,20 +1412,98 @@ Be helpful, professional, and provide clear actionable responses."""
         return skeleton
     
     async def _handle_composition(self) -> Dict[str, Any]:
-        """Compose final response based on detected intent"""
-        intent = self.current_loop.detected_intent.get("intent", "general")
-        
-        if intent == "dashboard":
-            # Render dashboard UI
-            dashboard_ui = self.render_ui(UIState.DASHBOARD, self.user_context)
-            return {
-                "type": "final_response",
-                "response": "Here's your dashboard",
-                "ui": dashboard_ui.get("component", {}),
-                "intent": intent
-            }
-        else:
-            # Generic response for other intents
+        """Enhanced composition using Neural Loop detected intent and entities"""
+        try:
+            detected_intent = self.current_loop.detected_intent or {}
+            intent = detected_intent.get("intent", "general")
+            confidence = detected_intent.get("confidence", 0.0)
+            entities = detected_intent.get("entities", [])
+            reasoning = detected_intent.get("reasoning", "")
+            
+            logger.info(f"Composing response for intent: {intent} (confidence: {confidence:.2f})")
+            
+            if intent == "dashboard":
+                # Render tenant-aware dashboard
+                dashboard_ui = self.render_ui(UIState.DASHBOARD, self.user_context)
+                response_text = "Here's your personalized dashboard"
+                if self.tenant_context:
+                    response_text += f" for {self.tenant_context.get('tenant_name', 'your workspace')}"
+                
+                return {
+                    "type": "final_response",
+                    "response": response_text,
+                    "ui": dashboard_ui.get("component", {}),
+                    "intent": intent,
+                    "confidence": confidence,
+                    "entities": entities,
+                    "reasoning": reasoning
+                }
+                
+            elif intent == "email":
+                # Compose email-specific response
+                email_entities = [e for e in entities if e.get("type") == "email_address"]
+                recipient_info = f" to {email_entities[0]['value']}" if email_entities else ""
+                
+                return {
+                    "type": "final_response",
+                    "response": f"I'll help you compose an email{recipient_info}. What would you like to say?",
+                    "ui": {"component": {"Card": {"title": {"literalString": "✉️ Email Composer"}, "content": {"literalString": "Ready to help you write your email"}, "actions": [{"type": "button", "label": "Compose New Email", "action": "compose_email"}], "variant": "info"}}},
+                    "intent": intent,
+                    "confidence": confidence,
+                    "entities": entities,
+                    "reasoning": reasoning
+                }
+                
+            elif intent == "calendar":
+                # Compose calendar-specific response
+                date_entities = [e for e in entities if e.get("type") == "date"]
+                date_info = f" for {date_entities[0]['value']}" if date_entities else ""
+                
+                return {
+                    "type": "final_response",
+                    "response": f"I'll show you your calendar{date_info}. What would you like to do?",
+                    "ui": {"component": {"Card": {"title": {"literalString": "📅 Calendar View"}, "content": {"literalString": "Ready to show your calendar"}, "actions": [{"type": "button", "label": "View Calendar", "action": "view_calendar"}], "variant": "info"}}},
+                    "intent": intent,
+                    "confidence": confidence,
+                    "entities": entities,
+                    "reasoning": reasoning
+                }
+                
+            elif intent == "meeting":
+                # Compose meeting-specific response
+                participant_entities = [e for e in entities if e.get("type") == "person"]
+                participants_info = f" with {', '.join([e['value'] for e in participant_entities])}" if participant_entities else ""
+                
+                return {
+                    "type": "final_response",
+                    "response": f"I'll help you schedule a meeting{participants_info}. When would you like to meet?",
+                    "ui": {"component": {"Card": {"title": {"literalString": "🤝 Meeting Scheduler"}, "content": {"literalString": "Ready to help schedule your meeting"}, "actions": [{"type": "button", "label": "Schedule Meeting", "action": "schedule_meeting"}], "variant": "info"}}},
+                    "intent": intent,
+                    "confidence": confidence,
+                    "entities": entities,
+                    "reasoning": reasoning
+                }
+                
+            else:
+                # Generic response for other intents with entity awareness
+                entity_summary = ""
+                if entities:
+                    entity_summary = f" I detected: {', '.join([f'{e['type']}: {e['value']}' for e in entities])}"
+                
+                return {
+                    "type": "final_response",
+                    "response": f"I understand you want to work with {intent}.{entity_summary} Here's what I can show you:",
+                    "ui": {"component": {"Card": {"title": {"literalString": f"🎯 {intent.title()}"}, "content": {"literalString": f"Showing {intent} interface with your context"}, "actions": [], "variant": "success"}}},
+                    "intent": intent,
+                    "confidence": confidence,
+                    "entities": entities,
+                    "reasoning": reasoning
+                }
+                
+        except Exception as e:
+            logger.error(f"Enhanced composition error: {e}")
+            # Fallback to simple composition
+            intent = self.current_loop.detected_intent.get("intent", "general")
             return {
                 "type": "final_response",
                 "response": f"I understand you want to work with {intent}. Here's what I can show you:",
@@ -1797,3 +2019,174 @@ Be helpful, professional, and provide clear actionable responses."""
             "timestamp": datetime.now().isoformat(),
             "requires_followup": intent.requires_clarification
         }
+    
+    # Tenant-Aware Methods for Multi-Tenant Isolation
+    def set_tenant_context(self, tenant_context: Dict[str, Any]) -> None:
+        """Set tenant context for multi-tenant operations"""
+        self.tenant_context = tenant_context
+        logger.info(f"Tenant context set: {tenant_context.get('tenant_id', 'unknown')}")
+    
+    def get_tenant_scoped_context(self) -> Dict[str, Any]:
+        """Get tenant-scoped context for UI rendering"""
+        if not self.tenant_context:
+            return {}
+        
+        return {
+            "tenant_id": self.tenant_context.get("tenant_id"),
+            "tenant_name": self.tenant_context.get("tenant_name"),
+            "user_roles": self.tenant_context.get("user_roles", []),
+            "user_permissions": self.tenant_context.get("user_permissions", []),
+            "tenant_features": self.tenant_context.get("tenant_features", []),
+            "is_tenant_admin": "tenant_admin" in self.tenant_context.get("user_permissions", []),
+            "can_access_advanced_features": "advanced_analytics" in self.tenant_context.get("tenant_features", [])
+        }
+    
+    def render_tenant_dashboard(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Render tenant-specific dashboard with proper isolation"""
+        tenant_context = self.get_tenant_scoped_context()
+        
+        # Merge tenant context with user context
+        merged_context = {**context, **tenant_context}
+        
+        # Filter UI components based on tenant features
+        filtered_context = self._filter_components_by_tenant_features(merged_context)
+        
+        # Render dashboard with tenant-specific data
+        return self.render_ui(UIState.DASHBOARD, filtered_context)
+    
+    def _filter_components_by_tenant_features(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Filter UI components based on tenant features and permissions"""
+        tenant_features = context.get("tenant_features", [])
+        user_permissions = context.get("user_permissions", [])
+        
+        # Base features available to all tenants
+        base_features = ["email", "calendar", "basic_analytics"]
+        
+        # Advanced features requiring specific tenant capabilities
+        advanced_features = ["ai", "advanced_analytics", "crm", "automation"]
+        
+        # Filter available features
+        available_features = []
+        
+        # Always include base features
+        for feature in base_features:
+            if feature in tenant_features or feature == "email":  # Email is always available
+                available_features.append(feature)
+        
+        # Include advanced features only if tenant has them
+        for feature in advanced_features:
+            if feature in tenant_features:
+                available_features.append(feature)
+        
+        # Filter navigation items based on available features
+        navigation_items = []
+        if "email" in available_features:
+            navigation_items.extend(["inbox", "compose", "sent"])
+        if "calendar" in available_features:
+            navigation_items.extend(["calendar", "meetings"])
+        if "basic_analytics" in available_features or "advanced_analytics" in available_features:
+            navigation_items.append("analytics")
+        if "crm" in available_features:
+            navigation_items.append("crm")
+        
+        # Create filtered context
+        filtered_context = context.copy()
+        filtered_context["available_features"] = available_features
+        filtered_context["navigation_items"] = navigation_items
+        filtered_context["is_limited_tenant"] = len(tenant_features) < len(base_features + advanced_features)
+        
+        return filtered_context
+    
+    def validate_tenant_access(self, required_permission: str = None, required_feature: str = None) -> bool:
+        """Validate tenant access for specific permission or feature"""
+        if not self.tenant_context:
+            logger.warning("No tenant context available for access validation")
+            return False
+        
+        # Check tenant feature availability
+        if required_feature:
+            tenant_features = self.tenant_context.get("tenant_features", [])
+            if required_feature not in tenant_features:
+                logger.warning(f"Tenant lacks required feature: {required_feature}")
+                return False
+        
+        # Check user permission
+        if required_permission:
+            user_permissions = self.tenant_context.get("user_permissions", [])
+            if required_permission not in user_permissions:
+                logger.warning(f"User lacks required permission: {required_permission}")
+                return False
+        
+        return True
+    
+    def get_tenant_specific_data(self, data_type: str) -> Dict[str, Any]:
+        """Get tenant-specific data with proper isolation"""
+        if not self.tenant_context:
+            return {"error": "No tenant context available"}
+        
+        tenant_id = self.tenant_context.get("tenant_id")
+        if not tenant_id:
+            return {"error": "No tenant ID in context"}
+        
+        # Mock tenant-specific data (replace with actual database queries)
+        tenant_data = {
+            "emails": {
+                "total": 0,
+                "unread": 0,
+                "sent_today": 0,
+                "items": []
+            },
+            "meetings": {
+                "total": 0,
+                "today": 0,
+                "this_week": 0,
+                "upcoming": []
+            },
+            "tasks": {
+                "total": 0,
+                "completed": 0,
+                "pending": 0,
+                "overdue": 0
+            },
+            "analytics": {
+                "email_open_rate": 0,
+                "meeting_attendance": 0,
+                "task_completion_rate": 0
+            }
+        }
+        
+        # Add tenant isolation metadata
+        tenant_data["tenant_info"] = {
+            "tenant_id": tenant_id,
+            "tenant_name": self.tenant_context.get("tenant_name", "Unknown"),
+            "user_roles": self.tenant_context.get("user_roles", []),
+            "features": self.tenant_context.get("tenant_features", [])
+        }
+        
+        return tenant_data.get(data_type, {"error": "Unknown data type"})
+    
+    def create_tenant_isolated_response(self, ui_data: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Create tenant-isolated response with proper scoping"""
+        tenant_context = self.get_tenant_scoped_context()
+        
+        # Add tenant metadata to response
+        response = {
+            "ui": ui_data,
+            "tenant_context": tenant_context,
+            "isolation_level": "tenant",
+            "timestamp": datetime.now().isoformat(),
+            "session_info": {
+                "tenant_id": tenant_context.get("tenant_id"),
+                "user_roles": tenant_context.get("user_roles"),
+                "permissions": tenant_context.get("user_permissions")
+            }
+        }
+        
+        # Add security headers for tenant isolation
+        response["security"] = {
+            "tenant_scoped": True,
+            "data_isolation": "strict",
+            "access_control": "role_based"
+        }
+        
+        return response

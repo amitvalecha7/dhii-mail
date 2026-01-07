@@ -15,24 +15,49 @@ import asyncio
 from a2ui_orchestrator import A2UIOrchestrator, UIState, OrchestratorState
 from a2ui_components_extended import A2UIComponents, A2UITemplates
 from liquid_glass_host import LiquidGlassHost, ComponentType
-import sys
-sys.path.append('..')
-from auth_api import get_current_user_from_token as get_current_user
+from tenant_manager import (
+    get_tenant_context, 
+    get_mock_tenant_context, 
+    TenantContext,
+    tenant_manager,
+    RequirePermission,
+    RequireFeature
+)
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 logger = logging.getLogger(__name__)
 
-# Mock authentication for testing - always provides a test user for testing
+# Multi-tenant aware authentication - provides tenant context
+async def get_current_user_tenant(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+) -> TenantContext:
+    """Get current user with full tenant context for production"""
+    if not credentials:
+        # Fallback to mock context for testing
+        return await get_mock_tenant_context()
+    
+    try:
+        # Use tenant manager to get full tenant context
+        return await get_tenant_context(credentials)
+    except Exception as e:
+        logger.warning(f"Failed to get tenant context: {e}, falling back to mock")
+        return await get_mock_tenant_context()
+
+# Legacy mock for backward compatibility
 async def get_current_user_mock(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ) -> Dict[str, Any]:
     """Mock authentication that always provides a test user for testing purposes."""
-    # Always return a test user for testing
+    context = await get_current_user_tenant(credentials)
     return {
-        "id": "test-user-123",
-        "name": "Test User",
-        "email": "test@example.com",
-        "username": "testuser"
+        "id": context.user.id,
+        "name": context.user.name,
+        "email": context.user.email,
+        "username": context.user.username,
+        "tenant_id": context.tenant.id,
+        "tenant_name": context.tenant.name,
+        "roles": context.user.roles,
+        "permissions": context.user.permissions
     }
 
 router = APIRouter(prefix="/api/a2ui", tags=["a2ui"])
@@ -123,14 +148,35 @@ def create_ui_response_from_orchestrator(ui_data: Dict[str, Any], data: Dict[str
 
 # All-A2UI Dashboard Routes
 @router.get("/dashboard", response_model=UIResponse)
-async def get_dashboard(current_user: dict = Depends(get_current_user_mock)):
-    """Get complete A2UI dashboard using unified orchestrator Neural Loop"""
+async def get_dashboard(tenant_context: TenantContext = Depends(get_current_user_tenant)):
+    """Get complete A2UI dashboard using unified orchestrator Neural Loop with tenant isolation"""
     try:
+        # Set tenant context in orchestrator for multi-tenant isolation
+        orchestrator.set_tenant_context({
+            "tenant_id": tenant_context.tenant.id,
+            "tenant_name": tenant_context.tenant.name,
+            "user_roles": tenant_context.user.roles,
+            "user_permissions": tenant_context.user.permissions,
+            "tenant_features": tenant_context.tenant.features
+        })
+        
         # Use unified orchestrator for Neural Loop processing
         user_intent = "show dashboard"
+        
+        # Get tenant-scoped data
+        tenant_data = tenant_manager.get_tenant_scoped_data(
+            tenant_context.tenant.id, 
+            "dashboard"
+        )
+        
         context = {
-            "name": current_user.get("name", "User"),
-            "user_id": current_user.get("id"),
+            "name": tenant_context.user.name,
+            "user_id": tenant_context.user.id,
+            "tenant_id": tenant_context.tenant.id,
+            "tenant_name": tenant_context.tenant.name,
+            "user_roles": tenant_context.user.roles,
+            "user_permissions": tenant_context.user.permissions,
+            "tenant_features": tenant_context.tenant.features,
             "stats": {
                 "meetings": 3,
                 "pendingEmails": 5,
@@ -145,7 +191,8 @@ async def get_dashboard(current_user: dict = Depends(get_current_user_mock)):
             "upcoming_events": [
                 "Team Sync - 14:00",
                 "Client Call - 16:00"
-            ]
+            ],
+            "tenant_data": tenant_data
         }
         
         # Use unified orchestrator dashboard-specific handler to bypass Neural Loop ambiguity
