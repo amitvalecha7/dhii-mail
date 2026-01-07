@@ -12,9 +12,11 @@ import logging
 from datetime import datetime
 import asyncio
 
-from .a2ui_orchestrator import A2UIOrchestrator, UIState, OrchestratorState
-from .a2ui_components_extended import A2UIComponents, A2UITemplates
-from .liquid_glass_host import LiquidGlassHost, ComponentType
+from a2ui_orchestrator import A2UIOrchestrator, UIState, OrchestratorState
+from a2ui_components_extended import A2UIComponents, A2UITemplates
+from liquid_glass_host import LiquidGlassHost, ComponentType
+import sys
+sys.path.append('..')
 from auth_api import get_current_user_from_token as get_current_user
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -585,3 +587,21 @@ async def stream_intent_endpoint(request: ProcessIntentRequest, current_user: di
             type="error_response",
             error=str(e)
         )
+
+# Create FastAPI app
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="A2UI Router", version="1.0.0")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include the router
+app.include_router(router)

@@ -1,0 +1,320 @@
+/* Liquid Glass UI - Enhanced Streaming Components */
+
+/* Core Liquid Glass Effects */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.015);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.liquid-glass:hover {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px -1px rgba(0, 0, 0, 0.3);
+}
+
+/* Streaming Demo Components */
+.streaming-demo-container {
+  @apply liquid-glass rounded-3xl p-8 m-4 min-h-[500px] flex flex-col;
+}
+
+.streaming-demo-header {
+  @apply flex items-center justify-between mb-6 pb-4 border-b border-white/10;
+}
+
+.streaming-demo-header h2 {
+  @apply text-2xl font-bold text-gradient bg-gradient-to-r from-primary to-accent;
+}
+
+.streaming-controls {
+  @apply flex items-center gap-4;
+}
+
+.connection-status {
+  @apply px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.connection-status.connected {
+  @apply bg-green-500/20 text-green-400 border border-green-500/30;
+}
+
+.connection-status.disconnected {
+  @apply bg-red-500/20 text-red-400 border border-red-500/30;
+}
+
+/* Streaming Content Areas */
+.streaming-demo-content {
+  @apply flex-1 flex items-center justify-center;
+}
+
+.streaming-demo-placeholder {
+  @apply text-center space-y-4;
+}
+
+.streaming-demo-placeholder h3 {
+  @apply text-xl font-semibold text-slate-300;
+}
+
+.streaming-demo-placeholder p {
+  @apply text-slate-500;
+}
+
+/* Skeleton Loading States */
+.streaming-demo-skeleton {
+  @apply space-y-6 w-full max-w-2xl;
+}
+
+.skeleton-loader {
+  @apply space-y-4;
+}
+
+.skeleton-header {
+  @apply h-8 bg-white/5 rounded-xl animate-pulse;
+}
+
+.skeleton-content {
+  @apply h-32 bg-white/5 rounded-2xl animate-pulse;
+}
+
+.skeleton-actions {
+  @apply h-12 bg-white/5 rounded-xl animate-pulse;
+}
+
+.streaming-message {
+  @apply text-center text-slate-400 text-sm mt-4;
+}
+
+.streaming-message.success {
+  @apply text-green-400;
+}
+
+/* Final UI Display */
+.streaming-demo-final {
+  @apply space-y-6 w-full max-w-2xl;
+}
+
+.ui-component {
+  @apply liquid-glass rounded-2xl p-6;
+}
+
+.ui-data {
+  @apply text-xs text-slate-300 overflow-x-auto;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Error States */
+.streaming-demo-error {
+  @apply flex items-center justify-center;
+}
+
+.error-message {
+  @apply flex items-center gap-3 text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-6 py-4;
+}
+
+.error-icon {
+  @apply text-xl;
+}
+
+.streaming-error {
+  @apply flex items-center gap-2 text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 mb-4;
+}
+
+/* Progress Tracking */
+.streaming-progress {
+  @apply space-y-2 mt-6;
+}
+
+.progress-bar {
+  @apply h-2 bg-white/5 rounded-full overflow-hidden;
+}
+
+.progress-fill {
+  @apply h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500 ease-out;
+}
+
+.progress-text {
+  @apply text-xs text-slate-400 text-center;
+}
+
+/* Event Log */
+.streaming-events {
+  @apply mt-8 pt-6 border-t border-white/10;
+}
+
+.streaming-events h4 {
+  @apply text-sm font-semibold text-slate-300 mb-4;
+}
+
+.events-list {
+  @apply space-y-2 max-h-40 overflow-y-auto;
+}
+
+.event-item {
+  @apply flex items-center justify-between px-3 py-2 rounded-lg text-xs;
+}
+
+.event-item.skeleton {
+  @apply bg-blue-500/10 text-blue-400 border border-blue-500/20;
+}
+
+.event-item.composition {
+  @apply bg-green-500/10 text-green-400 border border-green-500/20;
+}
+
+.event-item.update {
+  @apply bg-purple-500/10 text-purple-400 border border-purple-500/20;
+}
+
+.event-item.error {
+  @apply bg-red-500/10 text-red-400 border border-red-500/20;
+}
+
+.event-type {
+  @apply font-medium;
+}
+
+.event-timestamp {
+  @apply text-slate-500 text-[10px];
+}
+
+/* Buttons */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+}
+
+.btn-primary {
+  @apply bg-primary text-white hover:bg-primary/80 shadow-lg shadow-primary/20;
+}
+
+.btn-secondary {
+  @apply bg-white/10 text-white hover:bg-white/20 border border-white/20;
+}
+
+.btn-close {
+  @apply text-slate-400 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 flex items-center justify-center;
+}
+
+/* Enhanced A2UI Surface Components */
+.a2ui-surface-enhanced {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(60px) saturate(200%);
+  -webkit-backdrop-filter: blur(60px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Streaming UI Cards */
+.streaming-card {
+  @apply a2ui-surface-enhanced rounded-3xl p-6 transition-all duration-300;
+}
+
+.streaming-card:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Real-time Component Updates */
+.component-update {
+  @apply liquid-glass rounded-2xl p-4 border-l-4 border-primary;
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Specular Highlights for Interactive Elements */
+.specular-highlight {
+  position: relative;
+  overflow: hidden;
+}
+
+.specular-highlight::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 70%
+  );
+  transform: rotate(45deg);
+  transition: all 0.6s ease;
+  opacity: 0;
+}
+
+.specular-highlight:hover::before {
+  opacity: 1;
+  transform: rotate(45deg) translate(50%, 50%);
+}
+
+/* Glow Effects for Active Streaming */
+.streaming-active {
+  animation: streamingGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes streamingGlow {
+  from {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+  }
+  to {
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.4);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .streaming-demo-container {
+    @apply m-2 p-4 rounded-2xl;
+  }
+  
+  .streaming-demo-header {
+    @apply flex-col items-start gap-4;
+  }
+  
+  .streaming-controls {
+    @apply w-full justify-between;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .liquid-glass {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass,
+  .streaming-card,
+  .component-update {
+    animation: none;
+    transition: none;
+  }
+  
+  .specular-highlight::before {
+    display: none;
+  }
+}

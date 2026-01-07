@@ -16,11 +16,11 @@ from enum import Enum
 from pydantic import BaseModel
 import httpx
 
-from .a2ui_components_extended import A2UIComponents, A2UITemplates
-from .a2ui_state_machine import A2UIStateMachine, UIState, StateTransition
-from .a2ui_command_palette import A2UICommandPalette
-from .a2ui_appshell import A2UIAppShell
-from .data_structures import ComponentGraph
+from a2ui_components_extended import A2UIComponents, A2UITemplates
+from a2ui_state_machine import A2UIStateMachine, UIState, StateTransition
+from a2ui_command_palette import A2UICommandPalette
+from a2ui_appshell import A2UIAppShell
+from data_structures import ComponentGraph
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
