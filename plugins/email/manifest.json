@@ -1,87 +1,86 @@
 {
-  "id": "email_plugin",
-  "name": "Email Plugin",
-  "version": "1.0.0",
-  "description": "Handles email operations including sending, receiving, and processing",
-  "type": "email",
-  "author": "dhii-mail",
-  "enabled": true,
-  "dependencies": {
-    "aiohttp": "^3.8.0",
-    "fastapi": "^0.104.0"
-  },
+  "id": "email",
+  "name": "Email Integration",
+  "version": "2.0.0",
+  "plugin_type": "integration",
+  "author": "dhii-team",
+  "description": "Email integration with SMTP support - Framework 2.0",
   "capabilities": [
     {
-      "id": "email_send",
-      "domain": "email",
+      "id": "email.send_email",
       "name": "Send Email",
-      "description": "Send an email message",
+      "description": "Send email via SMTP",
+      "capability_type": "action",
       "input_schema": {
         "type": "object",
         "properties": {
-          "to": {"type": "string"},
+          "to_email": {"type": "string", "format": "email"},
           "subject": {"type": "string"},
           "body": {"type": "string"},
-          "attachments": {"type": "array"}
+          "from_email": {"type": "string", "format": "email"},
+          "smtp_config": {
+            "type": "object",
+            "properties": {
+              "host": {"type": "string"},
+              "port": {"type": "integer"},
+              "username": {"type": "string"},
+              "password": {"type": "string"},
+              "use_tls": {"type": "boolean"}
+            },
+            "required": ["host", "port"]
+          }
         },
-        "required": ["to", "subject", "body"]
+        "required": ["to_email", "subject", "body", "smtp_config"]
       },
       "output_schema": {
         "type": "object",
         "properties": {
-          "message_id": {"type": "string"},
           "status": {"type": "string"},
-          "timestamp": {"type": "string", "format": "date-time"}
+          "message_id": {"type": "string"},
+          "error": {"type": "string"}
         }
-      }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
     },
     {
-      "id": "email_receive",
-      "domain": "email",
-      "name": "Receive Email",
-      "description": "Receive email messages",
+      "id": "email.test_connection",
+      "name": "Test Connection",
+      "description": "Test SMTP connection",
+      "capability_type": "query",
       "input_schema": {
         "type": "object",
         "properties": {
-          "folder": {"type": "string", "default": "INBOX"},
-          "limit": {"type": "integer", "default": 10}
-        }
+          "smtp_config": {
+            "type": "object",
+            "properties": {
+              "host": {"type": "string"},
+              "port": {"type": "integer"},
+              "username": {"type": "string"},
+              "password": {"type": "string"},
+              "use_tls": {"type": "boolean"}
+            },
+            "required": ["host", "port"]
+          }
+        },
+        "required": ["smtp_config"]
       },
       "output_schema": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "message_id": {"type": "string"},
-            "from": {"type": "string"},
-            "subject": {"type": "string"},
-            "date": {"type": "string", "format": "date-time"}
-          }
+        "type": "object",
+        "properties": {
+          "status": {"type": "string"},
+          "error": {"type": "string"}
         }
-      }
+      },
+      "timeout_seconds": 10
     }
   ],
-  "ui_routes": [
-    {
-      "path": "/email",
-      "name": "Email Dashboard",
-      "component": "EmailDashboard",
-      "description": "Main email management interface"
-    },
-    {
-      "path": "/email/compose",
-      "name": "Compose Email",
-      "component": "EmailCompose",
-      "description": "Email composition interface"
-    }
-  ],
-  "config_schema": {
-    "type": "object",
-    "properties": {
-      "smtp_enabled": {"type": "boolean", "default": true},
-      "imap_enabled": {"type": "boolean", "default": true},
-      "max_connections": {"type": "integer", "default": 10},
-      "retry_attempts": {"type": "integer", "default": 3}
-    }
+  "dependencies": [],
+  "sandbox_config": {
+    "allowed_modules": [
+      "smtplib", "ssl", "email.mime.text", "email.mime.multipart"
+    ],
+    "max_memory_mb": 50,
+    "timeout_seconds": 30
   }
 }

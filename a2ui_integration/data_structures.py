@@ -5,7 +5,7 @@ Implements adjacency list model for component graph
 
 import uuid
 from typing import Dict, Any, List, Optional
-from a2ui_components_extended import A2UIComponents
+from .a2ui_components_extended import A2UIComponents
 
 class ComponentNode:
     """Node in the component graph"""

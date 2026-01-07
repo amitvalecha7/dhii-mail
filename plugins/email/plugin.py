@@ -3,10 +3,10 @@ Email Integration Plugin - Framework 2.0
 Standardized email plugin with manifest and proper contract implementation
 """
 
-from a2ui_integration.core.plugin_contract import (
-    PluginInterface, PluginManifest, PluginCapability,
-    PluginType, CapabilityType, register_plugin
+from a2ui_integration.framework.contract import (
+    PluginInterface, PluginManifest, PluginCapability
 )
+from a2ui_integration.framework.types import PluginType, CapabilityType
 from typing import Dict, Any
 import logging
 import smtplib
@@ -228,7 +228,7 @@ class EmailPlugin(PluginInterface):
                 pass
         self._smtp_connections.clear()
 
-def register_plugin(kernel_api: Dict[str, Any]) -> PluginInterface:
+def register(kernel_api: Dict[str, Any]) -> PluginInterface:
     """Standard registration function"""
     plugin = EmailPlugin()
     plugin.initialize(kernel_api)

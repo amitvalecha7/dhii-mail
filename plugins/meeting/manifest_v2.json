@@ -1,0 +1,255 @@
+{
+  "id": "meeting",
+  "name": "Holo-Meet",
+  "version": "2.0.0",
+  "plugin_type": "integration",
+  "author": "Dhii-Mail Core Team",
+  "description": "Next-gen meeting management with LiquidGlass UI",
+  "capabilities": [
+    {
+      "id": "meeting.create_meeting",
+      "name": "Create Meeting",
+      "description": "Create a new meeting",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "start_time": {"type": "string", "format": "date-time"},
+          "end_time": {"type": "string", "format": "date-time"},
+          "participants": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "location": {"type": "string"},
+          "meeting_type": {"type": "string", "enum": ["video", "audio", "in_person"]}
+        },
+        "required": ["title", "start_time", "end_time"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "meeting_id": {"type": "string"},
+          "status": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "meeting.update_meeting",
+      "name": "Update Meeting",
+      "description": "Update an existing meeting",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "meeting_id": {"type": "string"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "start_time": {"type": "string", "format": "date-time"},
+          "end_time": {"type": "string", "format": "date-time"},
+          "participants": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "location": {"type": "string"},
+          "meeting_type": {"type": "string", "enum": ["video", "audio", "in_person"]}
+        },
+        "required": ["meeting_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "meeting.get_meeting",
+      "name": "Get Meeting",
+      "description": "Get meeting details",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "meeting_id": {"type": "string"}
+        },
+        "required": ["meeting_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "meeting": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "title": {"type": "string"},
+              "description": {"type": "string"},
+              "start_time": {"type": "string", "format": "date-time"},
+              "end_time": {"type": "string", "format": "date-time"},
+              "participants": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "location": {"type": "string"},
+              "meeting_type": {"type": "string"},
+              "status": {"type": "string"},
+              "created_at": {"type": "string", "format": "date-time"},
+              "updated_at": {"type": "string", "format": "date-time"}
+            }
+          }
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "meeting.list_meetings",
+      "name": "List Meetings",
+      "description": "List meetings with filtering options",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "start_date": {"type": "string", "format": "date"},
+          "end_date": {"type": "string", "format": "date"},
+          "status": {"type": "string", "enum": ["scheduled", "in_progress", "completed", "cancelled"]},
+          "meeting_type": {"type": "string", "enum": ["video", "audio", "in_person"]},
+          "limit": {"type": "integer", "default": 50},
+          "offset": {"type": "integer", "default": 0}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "meetings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "title": {"type": "string"},
+                "start_time": {"type": "string", "format": "date-time"},
+                "end_time": {"type": "string", "format": "date-time"},
+                "status": {"type": "string"},
+                "meeting_type": {"type": "string"},
+                "participant_count": {"type": "integer"}
+              }
+            }
+          },
+          "total": {"type": "integer"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "meeting.delete_meeting",
+      "name": "Delete Meeting",
+      "description": "Delete a meeting",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "meeting_id": {"type": "string"}
+        },
+        "required": ["meeting_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "meeting.render_meeting_list",
+      "name": "Render Meeting List UI",
+      "description": "Render the meeting list UI component",
+      "capability_type": "ui",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "meetings": {
+            "type": "array",
+            "items": {"type": "object"}
+          },
+          "filters": {"type": "object"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "html": {"type": "string"},
+          "css": {"type": "string"},
+          "javascript": {"type": "string"}
+        }
+      },
+      "requires_auth": false,
+      "timeout_seconds": 10
+    },
+    {
+      "id": "meeting.render_meeting_detail",
+      "name": "Render Meeting Detail UI",
+      "description": "Render the meeting detail UI component",
+      "capability_type": "ui",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "meeting": {"type": "object"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "html": {"type": "string"},
+          "css": {"type": "string"},
+          "javascript": {"type": "string"}
+        }
+      },
+      "requires_auth": false,
+      "timeout_seconds": 10
+    },
+    {
+      "id": "meeting.render_meeting_book",
+      "name": "Render Meeting Booking UI",
+      "description": "Render the meeting booking UI component",
+      "capability_type": "ui",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "available_slots": {
+            "type": "array",
+            "items": {"type": "object"}
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "html": {"type": "string"},
+          "css": {"type": "string"},
+          "javascript": {"type": "string"}
+        }
+      },
+      "requires_auth": false,
+      "timeout_seconds": 10
+    }
+  ],
+  "dependencies": [],
+  "sandbox_config": {
+    "allowed_modules": [
+      "datetime", "json", "logging", "uuid", "typing"
+    ],
+    "max_memory_mb": 50,
+    "timeout_seconds": 30
+  }
+}

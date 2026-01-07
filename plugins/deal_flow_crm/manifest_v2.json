@@ -1,0 +1,364 @@
+{
+  "id": "deal_flow_crm",
+  "name": "Deal-Flow CRM",
+  "version": "2.0.0",
+  "plugin_type": "integration",
+  "author": "dhii.ai",
+  "description": "Comprehensive deal flow and pipeline management plugin for dhii Mail",
+  "capabilities": [
+    {
+      "id": "deal_flow_crm.create_deal",
+      "name": "Create Deal",
+      "description": "Create a new sales deal",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "value": {"type": "number"},
+          "currency": {"type": "string", "default": "USD"},
+          "stage": {"type": "string"},
+          "probability": {"type": "integer", "minimum": 0, "maximum": 100},
+          "contact_id": {"type": "string"},
+          "pipeline_id": {"type": "string"}
+        },
+        "required": ["title", "stage", "pipeline_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "deal_id": {"type": "string"},
+          "status": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.update_deal",
+      "name": "Update Deal",
+      "description": "Update an existing deal",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "deal_id": {"type": "string"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "value": {"type": "number"},
+          "currency": {"type": "string"},
+          "stage": {"type": "string"},
+          "probability": {"type": "integer", "minimum": 0, "maximum": 100}
+        },
+        "required": ["deal_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.get_deal",
+      "name": "Get Deal",
+      "description": "Get deal details",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "deal_id": {"type": "string"}
+        },
+        "required": ["deal_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "deal": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "title": {"type": "string"},
+              "description": {"type": "string"},
+              "value": {"type": "number"},
+              "currency": {"type": "string"},
+              "stage": {"type": "string"},
+              "probability": {"type": "integer"},
+              "contact_id": {"type": "string"},
+              "pipeline_id": {"type": "string"},
+              "created_at": {"type": "string", "format": "date-time"},
+              "updated_at": {"type": "string", "format": "date-time"}
+            }
+          }
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.list_deals",
+      "name": "List Deals",
+      "description": "List all deals",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pipeline_id": {"type": "string"},
+          "stage": {"type": "string"},
+          "limit": {"type": "integer", "default": 50},
+          "offset": {"type": "integer", "default": 0}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "deals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "title": {"type": "string"},
+                "value": {"type": "number"},
+                "currency": {"type": "string"},
+                "stage": {"type": "string"},
+                "probability": {"type": "integer"},
+                "contact_id": {"type": "string"},
+                "pipeline_id": {"type": "string"},
+                "created_at": {"type": "string", "format": "date-time"},
+                "updated_at": {"type": "string", "format": "date-time"}
+              }
+            }
+          },
+          "total": {"type": "integer"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.move_deal_stage",
+      "name": "Move Deal Stage",
+      "description": "Move deal to different stage",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "deal_id": {"type": "string"},
+          "new_stage": {"type": "string"},
+          "reason": {"type": "string"}
+        },
+        "required": ["deal_id", "new_stage"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.create_pipeline",
+      "name": "Create Pipeline",
+      "description": "Create a new sales pipeline",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "stages": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "required": ["name", "stages"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "pipeline_id": {"type": "string"},
+          "status": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.get_pipeline",
+      "name": "Get Pipeline",
+      "description": "Get pipeline details",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pipeline_id": {"type": "string"}
+        },
+        "required": ["pipeline_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "pipeline": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "description": {"type": "string"},
+              "stages": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "created_at": {"type": "string", "format": "date-time"},
+              "updated_at": {"type": "string", "format": "date-time"}
+            }
+          }
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.list_pipelines",
+      "name": "List Pipelines",
+      "description": "List all pipelines",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "pipelines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "name": {"type": "string"},
+                "description": {"type": "string"},
+                "stages": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
+                "created_at": {"type": "string", "format": "date-time"},
+                "updated_at": {"type": "string", "format": "date-time"}
+              }
+            }
+          }
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.link_contact_deal",
+      "name": "Link Contact to Deal",
+      "description": "Link a contact to a deal",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "deal_id": {"type": "string"},
+          "contact_id": {"type": "string"}
+        },
+        "required": ["deal_id", "contact_id"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "message": {"type": "string"}
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.get_analytics",
+      "name": "Get Analytics",
+      "description": "Get pipeline analytics and metrics",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pipeline_id": {"type": "string"},
+          "date_range": {
+            "type": "object",
+            "properties": {
+              "start_date": {"type": "string", "format": "date"},
+              "end_date": {"type": "string", "format": "date"}
+            }
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "total_deals": {"type": "integer"},
+              "total_value": {"type": "number"},
+              "conversion_rate": {"type": "number"},
+              "avg_deal_value": {"type": "number"},
+              "deals_by_stage": {
+                "type": "object",
+                "additionalProperties": {"type": "integer"}
+              }
+            }
+          }
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    },
+    {
+      "id": "deal_flow_crm.get_forecast",
+      "name": "Get Forecast",
+      "description": "Get deal forecast based on probability",
+      "capability_type": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pipeline_id": {"type": "string"},
+          "forecast_period": {"type": "string", "enum": ["month", "quarter", "year"]}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "forecast": {
+            "type": "object",
+            "properties": {
+              "expected_value": {"type": "number"},
+              "confidence": {"type": "number"},
+              "forecast_by_stage": {
+                "type": "object",
+                "additionalProperties": {"type": "number"}
+              }
+            }
+          }
+        }
+      },
+      "requires_auth": true,
+      "timeout_seconds": 30
+    }
+  ],
+  "dependencies": [],
+  "sandbox_config": {
+    "allowed_modules": [
+      "sqlite3", "datetime", "decimal", "json", "logging", "uuid", "typing"
+    ],
+    "max_memory_mb": 100,
+    "timeout_seconds": 30
+  }
+}

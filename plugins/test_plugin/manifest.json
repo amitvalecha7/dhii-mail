@@ -1,0 +1,33 @@
+{
+  "id": "test_plugin",
+  "name": "Test Plugin",
+  "version": "1.0.0",
+  "plugin_type": "integration",
+  "author": "Test Author",
+  "description": "A test plugin for V2 framework",
+  "capabilities": [
+    {
+      "id": "test_plugin.example",
+      "name": "Example Capability",
+      "description": "An example capability",
+      "capability_type": "action",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "requires_auth": false,
+      "rate_limit": null,
+      "timeout_seconds": 30
+    }
+  ],
+  "dependencies": [],
+  "sandbox_config": {}
+}

@@ -11,6 +11,8 @@ from middleware.logging_middleware import setup_logging_middleware
 from middleware.apm import setup_apm
 from error_handler import ErrorHandler, ErrorCategory
 from error_tracking_service import ErrorTrackingService, ErrorContext, get_error_tracking_service
+from a2ui_integration.core.kernel import Kernel
+from a2ui_integration.kernel_router import router as kernel_router
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -72,26 +74,43 @@ app.add_middleware(
     allow_headers=cors_config["allow_headers"],
 )
 
-# Initialize Intelligence Layer
-from intelligence_layer import initialize_intelligence_layer
+# Initialize Intelligence Layer - temporarily disabled due to missing dependencies
+# from intelligence_layer import initialize_intelligence_layer
+
+# Global kernel instance
+kernel = None
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize Intelligence Layer on application startup"""
+    """Initialize Intelligence Layer and Kernel on application startup"""
+    global kernel
     try:
-        await initialize_intelligence_layer()
-        logger.info("Intelligence Layer initialized successfully")
+        # Initialize kernel
+        kernel = Kernel(db_path="kernel.db", secret_key="kernel-secret-key")
+        await kernel.initialize()
+        logger.info("Kernel initialized successfully")
+        
+        # Set kernel instance in kernel router
+        import a2ui_integration.kernel_router as kernel_router_module
+        kernel_router_module.kernel = kernel
+        
+        # Initialize Intelligence Layer - temporarily disabled due to missing dependencies
+        # await initialize_intelligence_layer()
+        # logger.info("Intelligence Layer initialized successfully")
+        logger.info("Intelligence Layer initialization skipped - missing dependencies")
     except Exception as e:
-        logger.error(f"Failed to initialize Intelligence Layer: {e}")
+        logger.error(f"Failed to initialize services: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup Intelligence Layer on application shutdown"""
-    from intelligence_layer import get_intelligence_layer
     try:
-        layer = get_intelligence_layer()
-        await layer.stop()
-        logger.info("Intelligence Layer stopped successfully")
+        # Temporarily disabled due to missing dependencies
+        # from intelligence_layer import get_intelligence_layer
+        # layer = get_intelligence_layer()
+        # await layer.stop()
+        # logger.info("Intelligence Layer stopped successfully")
+        logger.info("Intelligence Layer shutdown skipped - missing dependencies")
     except Exception as e:
         logger.error(f"Failed to stop Intelligence Layer: {e}")
 
@@ -113,9 +132,12 @@ app.mount("/auth", auth_app)
 # from routers import users
 # app.include_router(users.router, prefix="/api/users", tags=["users"])
 
-# A2UI Router
-from a2ui_integration.a2ui_router import router as a2ui_router
-app.include_router(a2ui_router)
+# A2UI Router - temporarily disabled due to missing dependencies
+# from a2ui_integration.a2ui_router import router as a2ui_router
+# app.include_router(a2ui_router)
+
+# Kernel Router
+app.include_router(kernel_router)
 
 # Error Tracking API Endpoints
 @app.get("/api/v1/errors/summary")
@@ -189,6 +211,257 @@ async def resolve_error(error_id: int, user_id: str, resolution_notes: str = "")
         return JSONResponse(
             status_code=500,
             content={"error": "Failed to resolve error"}
+        )
+
+# Kernel API Endpoints
+@app.get("/api/kernel/health")
+async def kernel_health():
+    """Get kernel health status and metrics"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        plugins = await kernel.list_plugins()
+        total_plugins = len(plugins)
+        enabled_plugins = len([p for p in plugins if p.status.value == "enabled"])
+        
+        return {
+            "status": "healthy",
+            "total_plugins": total_plugins,
+            "enabled_plugins": enabled_plugins,
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        logger.error(f"Kernel health check failed: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.get("/api/kernel/metrics")
+async def kernel_metrics():
+    """Get kernel performance metrics"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        plugins = await kernel.list_plugins()
+        total_usage = sum(p.usage_count for p in plugins)
+        total_errors = sum(p.error_count for p in plugins)
+        
+        return {
+            "total_usage": total_usage,
+            "total_errors": total_errors,
+            "total_plugins": len(plugins),
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        logger.error(f"Kernel metrics failed: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.get("/api/kernel/plugins")
+async def list_kernel_plugins():
+    """List all plugins managed by the kernel"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        plugins = await kernel.list_plugins()
+        return {"plugins": [plugin.to_dict() for plugin in plugins]}
+    except Exception as e:
+        logger.error(f"Failed to list kernel plugins: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.get("/api/kernel/plugins/{plugin_id}")
+async def get_kernel_plugin(plugin_id: str):
+    """Get specific plugin details from kernel"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        plugin = await kernel.get_plugin(plugin_id)
+        if plugin is None:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "not_found", "message": f"Plugin {plugin_id} not found"}
+            )
+        
+        return plugin.to_dict()
+    except Exception as e:
+        logger.error(f"Failed to get kernel plugin {plugin_id}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.put("/api/kernel/plugins/{plugin_id}/enable")
+async def enable_kernel_plugin(plugin_id: str):
+    """Enable a plugin in the kernel"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        success = await kernel.enable_plugin(plugin_id)
+        if success:
+            return {"status": "success", "message": f"Plugin {plugin_id} enabled"}
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": f"Failed to enable plugin {plugin_id}"}
+            )
+    except Exception as e:
+        logger.error(f"Failed to enable kernel plugin {plugin_id}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.put("/api/kernel/plugins/{plugin_id}/disable")
+async def disable_kernel_plugin(plugin_id: str):
+    """Disable a plugin in the kernel"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        success = await kernel.disable_plugin(plugin_id)
+        if success:
+            return {"status": "success", "message": f"Plugin {plugin_id} disabled"}
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": f"Failed to disable plugin {plugin_id}"}
+            )
+    except Exception as e:
+        logger.error(f"Failed to disable kernel plugin {plugin_id}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.get("/api/kernel/plugins/{plugin_id}/health")
+async def get_plugin_health(plugin_id: str):
+    """Get health status of a specific plugin"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        plugin = await kernel.get_plugin(plugin_id)
+        if plugin is None:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "not_found", "message": f"Plugin {plugin_id} not found"}
+            )
+        
+        health_status = "healthy" if plugin.error_count == 0 else "degraded"
+        return {
+            "plugin_id": plugin_id,
+            "status": health_status,
+            "error_count": plugin.error_count,
+            "usage_count": plugin.usage_count,
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get plugin health {plugin_id}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.post("/api/kernel/capabilities/{capability_id}/execute")
+async def execute_capability(capability_id: str, params: Dict[str, Any]):
+    """Execute a capability through the kernel"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        result = await kernel.execute_capability(capability_id, params)
+        return {"status": "success", "result": result}
+    except ValueError as e:
+        return JSONResponse(
+            status_code=404,
+            content={"status": "not_found", "message": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Failed to execute capability {capability_id}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.get("/api/kernel/events")
+async def get_kernel_events(event_type: Optional[str] = None, limit: int = 100):
+    """Get kernel event history"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        if event_type:
+            events = kernel.shared_services.event_bus.get_event_history(
+                event_type=event_type,
+                limit=limit
+            )
+        else:
+            events = kernel.shared_services.event_bus.get_event_history(limit=limit)
+        
+        return {"events": [event.to_dict() for event in events]}
+    except Exception as e:
+        logger.error(f"Failed to get kernel events: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+@app.get("/api/kernel/search")
+async def search_kernel(query: str, domains: Optional[str] = None):
+    """Search kernel capabilities and plugins"""
+    try:
+        if kernel is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "Kernel not initialized"}
+            )
+        
+        domain_list = domains.split(",") if domains else None
+        results = await kernel.search(query, domain_list)
+        return {"results": results}
+    except Exception as e:
+        logger.error(f"Failed to search kernel: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
         )
 
 # Plugin Registry Proxy

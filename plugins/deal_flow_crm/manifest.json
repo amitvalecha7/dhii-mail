@@ -1,0 +1,53 @@
+{
+    "name": "Deal-Flow CRM",
+    "version": "1.0.0",
+    "description": "Comprehensive deal flow and pipeline management plugin for dhii Mail",
+    "author": "dhii.ai",
+    "type": "crm",
+    "capabilities": [
+        "deal.create",
+        "deal.update",
+        "deal.delete",
+        "deal.get",
+        "deal.list",
+        "deal.move_stage",
+        "pipeline.create",
+        "pipeline.update",
+        "pipeline.delete",
+        "pipeline.get",
+        "pipeline.list",
+        "contact.link_deal",
+        "contact.unlink_deal",
+        "analytics.pipeline_metrics",
+        "analytics.deal_forecast",
+        "ui.dashboard",
+        "ui.deal_form",
+        "ui.pipeline_view"
+    ],
+    "dependencies": ["contacts", "email"],
+    "config": {
+        "database_path": "/tmp/dealflow_crm.db",
+        "default_currency": "USD",
+        "default_pipeline_stages": [
+            "Prospecting",
+            "Qualification", 
+            "Proposal",
+            "Negotiation",
+            "Closed Won",
+            "Closed Lost"
+        ],
+        "deal_probability_mapping": {
+            "Prospecting": 10,
+            "Qualification": 25,
+            "Proposal": 50,
+            "Negotiation": 75,
+            "Closed Won": 100,
+            "Closed Lost": 0
+        }
+    },
+    "ui_components": {
+        "dashboard_widget": "deal-dashboard",
+        "main_view": "deal-pipeline",
+        "form_components": ["deal-form", "pipeline-form"]
+    }
+}

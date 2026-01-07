@@ -20,8 +20,13 @@ class PluginRunner:
         self.sandbox = PluginSandbox(plugin_id, kernel_api)
         self.is_active = False
         self._capabilities = {} # Map capability_id -> function
+    
+    def update_kernel_api(self, new_kernel_api: Dict[str, Any]):
+        """Update the kernel API and recreate the sandbox with the new API"""
+        self.kernel_api = new_kernel_api
+        self.sandbox = PluginSandbox(self.plugin_id, new_kernel_api)
 
-    def register_capability(self, capability_id: str, func):
+    def register_capability(self, capability_id: str, capability, func):
         """
         Registers a python function as a capability handler.
         """

@@ -672,3 +672,22 @@ CALENDAR_PLUGIN_CONFIG = PluginConfig(
     capabilities=[],  # Will be populated by the plugin instance
     dependencies=[]
 )
+
+
+def register(kernel_api):
+    """
+    Register the calendar plugin with the kernel.
+    
+    Args:
+        kernel_api: The kernel API to register capabilities with
+    
+    Returns:
+        The plugin instance
+    """
+    plugin = CalendarPlugin()
+    
+    # Register each capability
+    for capability in plugin.capabilities:
+        kernel_api.register_capability(capability.id, capability, plugin.execute_capability)
+    
+    return plugin

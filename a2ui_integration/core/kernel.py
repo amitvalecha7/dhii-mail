@@ -17,6 +17,8 @@ from .types import (
 from .shared_services import SharedServices, get_shared_services, EventType, Event
 from .logging import get_logger
 from .runner import PluginRunner
+from .plugin_api import PluginAPIBuilder
+from .manager_v2 import PluginManagerV2
 
 logger = get_logger(__name__)
 
@@ -32,6 +34,9 @@ class Kernel(KernelInterface):
         self._capabilities: Dict[str, Capability] = {}
         self._capability_to_plugin: Dict[str, str] = {}
         self._initialized = False
+        
+        # Initialize plugin manager (Framework 2.0)
+        self.plugin_manager = PluginManagerV2("plugins")
         
         # Initialize shared services
         self._init_shared_services()
@@ -87,62 +92,35 @@ class Kernel(KernelInterface):
         self._load_plugins()
     
     def _load_plugin(self, plugin_id: str):
-        """Load a specific plugin using the Glass Wall Sandbox"""
+        """Load a specific plugin using Framework 2.0 PluginManager"""
         try:
-            # 1. Provide the Kernel Interface API to the plugin
-            kernel_context = {
-                "log": logger.info,
-                "error": logger.error,
-                # In future, we can add register_capability, emit_event etc here.
-                # For now, simplistic logger availability.
-            }
+            # Use Framework 2.0 PluginManager
+            plugin = self.plugin_manager.load_plugin(plugin_id)
             
-            # 2. Get Plugin Source (Simulated: Reading from plugins_dir)
-            # Assuming self.plugin_installer.plugins_dir is available or we reconstruct path
-            plugin_path = Path("plugins") / plugin_id / "__init__.py"
+            # Convert to domain module format for backward compatibility
+            self._plugins[plugin_id] = plugin
             
-            if not plugin_path.exists():
-                logger.error(f"Plugin source not found for {plugin_id}")
-                return
-
-            with open(plugin_path, "r") as f:
-                source_code = f.read()
-
-            # 3. Create Runner
-            runner = PluginRunner(plugin_id, source_code, {}, kernel_context)
-            
-            # Inject register_capability into context so plugin can call kernel.register_capability(...)
-            kernel_context["register_capability"] = runner.register_capability
-            
-            # 4. Load
-            if runner.load_and_register():
-                # For MVP, we treat the 'runner' as the domain module if it succeeded
-                # In a full impl, we'd wrap the runner's registered capabilities
-                self._plugins[plugin_id] = runner
+            # Register capabilities in kernel format
+            for capability in plugin.manifest.capabilities:
+                self._capability_to_plugin[capability.id] = plugin_id
                 
-                # Register capabilities dynamically
-                for capability_id in runner._capabilities:
-                    self._capability_to_plugin[capability_id] = plugin_id
-                    
-                    if capability_id not in self._capabilities:
-                         # Create a dynamic placeholder capability if not in DB
-                         self._capabilities[capability_id] = Capability(
-                             id=capability_id,
-                             domain="dynamic",
-                             name=capability_id,
-                             description="Dynamically registered capability",
-                             input_schema={},
-                             output_schema={},
-                             side_effects=[],
-                             requires_auth=False
-                         )
-
-                logger.info(f"Plugin {plugin_id} loaded safely via Glass Wall.")
-            else:
-                logger.error(f"Plugin {plugin_id} failed to load via Glass Wall.")
-
+                # Convert to kernel Capability format
+                self._capabilities[capability.id] = Capability(
+                    id=capability.id,
+                    domain=plugin.manifest.plugin_type.value,
+                    name=capability.name,
+                    description=capability.description,
+                    input_schema=capability.input_schema,
+                    output_schema=capability.output_schema,
+                    side_effects=[],
+                    requires_auth=capability.requires_auth
+                )
+            
+            logger.info(f"Plugin {plugin_id} loaded successfully via Framework 2.0")
+            
         except Exception as e:
-            logger.error(f"Critical error loading plugin {plugin_id}: {e}")
+            logger.error(f"Failed to load plugin {plugin_id}: {e}")
+            return False
     
     def register_plugin_instance(self, plugin_id: str, plugin_instance: DomainModule) -> bool:
         """Register an actual plugin instance that can execute capabilities"""
@@ -171,7 +149,7 @@ class Kernel(KernelInterface):
             # For now, we just log success.
             return True
         else:
-            logger.error(f"Failed to install plugin {plugin_id}")
+            logger.error(f"Failed to load plugin {plugin_id}")
             return False
     
     async def register_plugin(self, plugin_config: PluginConfig) -> bool:
