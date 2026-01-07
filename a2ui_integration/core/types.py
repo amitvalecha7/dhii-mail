@@ -72,6 +72,26 @@ class Card(A2UIComponent):
     actions: List[Dict[str, Any]] = []
 
 
+class TextBlock(A2UIComponent):
+    """Represents a TextBlock in the A2UI Adjacency List (New Design Spec v1.2)"""
+    type: str = "text_block"
+    content: str = ""
+    tone: str = "neutral"  # neutral | advisory | warning
+    collapsible: bool = True
+    completed: bool = False
+
+
+class AggregatedCard(A2UIComponent):
+    """Represents an AggregatedCard in the A2UI Adjacency List (New Design Spec v1.2)"""
+    type: str = "aggregated_card"
+    title: str = ""
+    sources: List[str] = []  # ["email", "tasks", "calendar"]
+    items: List[Dict[str, Any]] = []  # [{"label": "Urgent Emails", "value": 3}]
+    multiple_sources: bool = True
+    partial_rendering: bool = True  # Allow partial rendering on plugin failure
+    importance_based_layout: bool = True
+
+
 class Pane(A2UIComponent):
     """Represents a Pane/Column in the A2UI Layout"""
     type: str = "pane"

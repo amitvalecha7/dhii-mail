@@ -603,3 +603,49 @@ class A2UITemplates:
             ),
             A2UIComponents.create_alert("Settings saved successfully", "success")
         ]
+    
+    @staticmethod
+    def create_text_block(content: str, tone: str = "neutral", collapsible: bool = True, completed: bool = False) -> Dict[str, Any]:
+        """Create a TextBlock component (New Design Spec v1.2 compliant)"""
+        return {
+            "component": {
+                "TextBlock": {
+                    "content": {"literalString": content},
+                    "tone": tone,
+                    "collapsible": collapsible,
+                    "completed": completed,
+                    "styles": {
+                        "fontSize": "14px",
+                        "lineHeight": "1.5",
+                        "marginTop": "8px",
+                        "marginBottom": "8px"
+                    }
+                }
+            }
+        }
+    
+    @staticmethod
+    def create_aggregated_card(title: str, sources: List[str], items: List[Dict[str, Any]], 
+                             multiple_sources: bool = True, partial_rendering: bool = True, 
+                             importance_based_layout: bool = True) -> Dict[str, Any]:
+        """Create an AggregatedCard component (New Design Spec v1.2 compliant)"""
+        return {
+            "component": {
+                "AggregatedCard": {
+                    "title": {"literalString": title},
+                    "sources": sources,
+                    "items": items,
+                    "multipleSources": multiple_sources,
+                    "partialRendering": partial_rendering,
+                    "importanceBasedLayout": importance_based_layout,
+                    "styles": {
+                        "border": "1px solid #e5e7eb",
+                        "borderRadius": "8px",
+                        "padding": "16px",
+                        "marginTop": "8px",
+                        "marginBottom": "8px",
+                        "backgroundColor": "#ffffff"
+                    }
+                }
+            }
+        }

@@ -1068,6 +1068,8 @@ Humans decide meaning.
 
 This mapping is the contract that makes Dhii scalable.
 
+The UI runtime may use Vite as a build tool.
+Build tools must not influence UI behavior, state, or protocol interpretation.
 
 
 ### Next (Optional but High-Value) - Thsi si for Phase 2

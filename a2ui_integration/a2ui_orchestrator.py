@@ -16,14 +16,15 @@ from enum import Enum
 from pydantic import BaseModel
 import httpx
 
-from a2ui_components_extended import A2UIComponents, A2UITemplates
-from a2ui_state_machine import A2UIStateMachine, UIState, StateTransition
-from a2ui_command_palette import A2UICommandPalette
-from a2ui_appshell import A2UIAppShell
-from data_structures import ComponentGraph
+from a2ui_integration.a2ui_components_extended import A2UIComponents, A2UITemplates
+from a2ui_integration.a2ui_state_machine import A2UIStateMachine, UIState, StateTransition
+from a2ui_integration.a2ui_command_palette import A2UICommandPalette
+from a2ui_integration.a2ui_appshell import A2UIAppShell
+from a2ui_integration.data_structures import ComponentGraph
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from neural_loop_ai_engine import EnhancedNeuralLoopEngine, NeuralLoopContext as EnhancedNeuralLoopContext, IntentType, AmbiguityType
+from a2ui_integration.neural_loop_ai_engine import EnhancedNeuralLoopEngine, NeuralLoopContext as EnhancedNeuralLoopContext, IntentType, AmbiguityType
+from a2ui_integration.backend_ui_mapping_contract import BackendUIMappingContract, OrchestratorOutput, IntentType as MappingIntentType
 
 if TYPE_CHECKING:
     from tenant_manager import TenantContext
@@ -117,6 +118,9 @@ Be helpful, professional, and provide clear actionable responses."""
         # Enhanced Neural Loop engine
         self.neural_loop_engine = EnhancedNeuralLoopEngine()
         
+        # Backend→UI Mapping Contract (New Design Spec v1.2)
+        self.mapping_contract = BackendUIMappingContract()
+        
     def render_ui(self, state: UIState, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Render complete UI based on state and context"""
         self.user_context = context or {}
@@ -145,7 +149,7 @@ Be helpful, professional, and provide clear actionable responses."""
         
         # Route to appropriate renderer
         renderers = {
-            UIState.DASHBOARD: self._render_dashboard,
+            UIState.DASHBOARD: self._render_aggregated_dashboard,  # New Design Spec compliant
             UIState.EMAIL_INBOX: self._render_email_inbox,
             UIState.EMAIL_COMPOSE: self._render_email_compose,
             UIState.EMAIL_DETAIL: self._render_email_detail,
@@ -202,8 +206,93 @@ Be helpful, professional, and provide clear actionable responses."""
             "state_info": self.state_machine.get_state_info()
         }
     
+    def _render_aggregated_dashboard(self) -> Dict[str, Any]:
+        """Render dashboard using AggregatedCard (New Design Spec v1.2 compliant)"""
+        # Get tenant and user context for mapping contract
+        tenant_id = self.tenant_context.get("tenant_id", "default") if self.tenant_context else "default"
+        user_id = self.user_context.get("user_id", "default")
+        
+        # Create chunks using mapping contract
+        welcome_chunk = self.create_text_block_chunk(
+            content=f"Welcome back, {self.user_context.get('name', 'User')}! Here's your workspace overview.",
+            tone="neutral",
+            collapsible=True,
+            completed=False
+        )
+        
+        advisory_chunk = self.create_text_block_chunk(
+            content="You have 3 urgent items requiring attention.",
+            tone="advisory",
+            collapsible=False,
+            completed=False
+        )
+        
+        aggregated_chunk = self.create_aggregated_card_chunk(
+            title="Today's Focus Areas",
+            sources=["email", "tasks", "calendar"],
+            items=[
+                {"label": "Urgent Emails", "value": self.user_context.get('pendingEmails', 0)},
+                {"label": "Overdue Tasks", "value": self.user_context.get('overdueTasks', 0)},
+                {"label": "Today's Meetings", "value": self.user_context.get('meetingsToday', 0)},
+                {"label": "Pending Actions", "value": self.user_context.get('pendingActions', 0)}
+            ],
+            multiple_sources=True,
+            partial_rendering=True,
+            importance_based_layout=True
+        )
+        
+        # Create compliant orchestrator output
+        output = self.create_orchestrator_output(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            state="COMPLETED",
+            chunks=[welcome_chunk, advisory_chunk, aggregated_chunk],
+            explanation="Dashboard overview with focus areas and workspace summary"
+        )
+        
+        # Convert to UI format (this would be handled by the UI runtime)
+        return {
+            "orchestrator_output": output.dict(),
+            "adjacency_list": self._chunks_to_adjacency_list(output.chunks)
+        }
+    
+    def _chunks_to_adjacency_list(self, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Convert chunks to adjacency list format for UI rendering"""
+        graph = ComponentGraph()
+        
+        # Add each chunk as a node
+        chunk_nodes = []
+        for chunk in chunks:
+            if chunk["type"] == "TextBlock":
+                node_id = graph.add_node("TextBlock", chunk)
+            elif chunk["type"] == "AggregatedCard":
+                node_id = graph.add_node("AggregatedCard", chunk)
+            else:
+                # Default to Card for unknown types
+                node_id = graph.add_node("Card", chunk)
+            chunk_nodes.append(node_id)
+        
+        # Create layout
+        layout_id = graph.add_node("Layout", {
+            "type": "dashboard",
+            "orientation": "vertical"
+        })
+        
+        # Add chunks to layout
+        for node_id in chunk_nodes:
+            graph.add_child(layout_id, node_id)
+        
+        return graph.to_adjacency_list()
+        
+        # Add components to layout
+        graph.add_child(layout_id, welcome_text_id)
+        graph.add_child(layout_id, advisory_text_id)
+        graph.add_child(layout_id, aggregated_card_id)
+        
+        return graph.to_json()
+    
     def _render_dashboard(self) -> Dict[str, Any]:
-        """Render main dashboard with A2UI components"""
+        """Render main dashboard with A2UI components (Legacy - will be deprecated)"""
         graph = ComponentGraph()
         
         # Welcome card
@@ -369,7 +458,7 @@ Be helpful, professional, and provide clear actionable responses."""
         }
     
     def _render_email_detail(self) -> Dict[str, Any]:
-        """Render email detail view"""
+        """Render email detail view with New Design Spec v1.2 components"""
         graph = ComponentGraph()
         
         email_data = self.user_context.get("email_detail", {
@@ -380,21 +469,34 @@ Be helpful, professional, and provide clear actionable responses."""
             "content": "This is a sample email content for demonstration purposes."
         })
         
-        # Email header card
-        header_card_id = graph.add_node("Card", {
-            "title": email_data.get("subject", "No Subject"),
-            "content": f"From: {email_data.get('from', 'Unknown')}\nTo: {email_data.get('to', 'Unknown')}\nDate: {email_data.get('date', 'Unknown')}",
-            "actions": [
-                {"label": "Reply", "action": "reply_email"},
-                {"label": "Forward", "action": "forward_email"},
-                {"label": "Delete", "action": "delete_email"}
-            ]
+        # Email header using TextBlock
+        header_text_id = graph.add_node("TextBlock", {
+            "content": f"Subject: {email_data.get('subject', 'No Subject')}\nFrom: {email_data.get('from', 'Unknown')}\nTo: {email_data.get('to', 'Unknown')}\nDate: {email_data.get('date', 'Unknown')}",
+            "tone": "neutral",
+            "collapsible": False,
+            "completed": False
         })
         
-        # Email content
-        content_card_id = graph.add_node("Card", {
-            "title": "Email Content",
-            "content": email_data.get("content", "No content available")
+        # Email content using TextBlock
+        content_text_id = graph.add_node("TextBlock", {
+            "content": email_data.get("content", "No content available"),
+            "tone": "neutral",
+            "collapsible": True,
+            "completed": False
+        })
+        
+        # AggregatedCard for email actions
+        actions_card_id = graph.add_node("AggregatedCard", {
+            "title": "Email Actions",
+            "sources": ["email"],
+            "items": [
+                {"label": "Reply", "value": "reply_email"},
+                {"label": "Forward", "action": "forward_email"},
+                {"label": "Delete", "action": "delete_email"}
+            ],
+            "multiple_sources": False,
+            "partial_rendering": True,
+            "importance_based_layout": True
         })
         
         # Action toolbar
@@ -411,8 +513,11 @@ Be helpful, professional, and provide clear actionable responses."""
             "orientation": "vertical"
         })
         graph.add_child(main_layout_id, toolbar_id)
-        graph.add_child(main_layout_id, header_card_id)
-        graph.add_child(main_layout_id, content_card_id)
+        graph.add_child(main_layout_id, header_text_id)
+        graph.add_child(main_layout_id, content_text_id)
+        graph.add_child(main_layout_id, actions_card_id)
+        
+        graph.set_root(main_layout_id)
         
         graph.set_root(main_layout_id)
         
@@ -1168,7 +1273,7 @@ Be helpful, professional, and provide clear actionable responses."""
             return await self._handle_error_recovery()
     
     async def process_dashboard_request(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Special handler for dashboard requests - bypass Neural Loop ambiguity with tenant isolation"""
+        """Enhanced dashboard handler with tenant isolation and user-verse boundaries"""
         self.user_context = context
         self.current_loop = NeuralLoopContext(
             user_intent="dashboard",
@@ -1181,8 +1286,24 @@ Be helpful, professional, and provide clear actionable responses."""
         # Apply tenant filtering if tenant context is available
         if self.tenant_context:
             context = self._filter_components_by_tenant_features(context)
+            
+            # Apply user-verse boundaries for dashboard data
+            current_user_id = self.tenant_context.get("user_id")
+            if current_user_id:
+                # Get user-scoped dashboard data
+                dashboard_data_types = ["emails", "meetings", "tasks", "analytics"]
+                scoped_data = {}
+                
+                for data_type in dashboard_data_types:
+                    scoped_result = self.get_user_scoped_data(current_user_id, data_type)
+                    scoped_data[data_type] = scoped_result
+                
+                # Merge scoped data into context
+                context.update(scoped_data)
+                context["user_verse_enforced"] = True
+                context["access_level"] = "own"  # Users always access their own dashboard
         
-        # Create dashboard UI directly with tenant-aware components
+        # Create dashboard UI with enhanced isolation
         graph = ComponentGraph()
         
         # Main dashboard card with tenant info
@@ -1191,7 +1312,8 @@ Be helpful, professional, and provide clear actionable responses."""
             "title": f"📊 {tenant_name} Dashboard",
             "content": f"Welcome back, {context.get('name', 'User')}!",
             "variant": "primary",
-            "tenant_id": context.get("tenant_id", "unknown")
+            "tenant_id": context.get("tenant_id", "unknown"),
+            "user_verse_enforced": context.get("user_verse_enforced", False)
         })
         
         # Tenant features indicator
@@ -1204,15 +1326,44 @@ Be helpful, professional, and provide clear actionable responses."""
             })
             graph.add_child(dashboard_card, features_card)
         
-        # Stats section with tenant data
+        # User-verse boundary indicator
+        if context.get("user_verse_enforced"):
+            boundary_card = graph.add_node("Card", {
+                "title": "🔒 User-Verse Boundaries",
+                "content": f"Access Level: {context.get('access_level', 'own')}",
+                "variant": "success",
+                "size": "small"
+            })
+            graph.add_child(dashboard_card, boundary_card)
+        
+        # Stats section with user-scoped data
         stats_data = context.get('stats', {})
         tenant_data = context.get('tenant_data', {})
         
-        # Use tenant-specific stats if available
-        if tenant_data:
-            stats_content = f"Tenant Data: {len(tenant_data.get('items', []))} items"
+        # Use user-scoped stats if available
+        emails_data = context.get('emails', {})
+        meetings_data = context.get('meetings', {})
+        tasks_data = context.get('tasks', {})
+        
+        if emails_data.get('can_access'):
+            email_count = emails_data.get('count', 0)
         else:
-            stats_content = f"Meetings: {stats_data.get('meetings', 0)} | Emails: {stats_data.get('pendingEmails', 0)} | Video: {stats_data.get('activeVideo', 0)} | Campaigns: {stats_data.get('campaigns', 0)}"
+            email_count = stats_data.get('pendingEmails', 0)
+            
+        if meetings_data.get('can_access'):
+            meeting_count = meetings_data.get('count', 0)
+        else:
+            meeting_count = stats_data.get('meetings', 0)
+            
+        if tasks_data.get('can_access'):
+            task_count = tasks_data.get('count', 0)
+        else:
+            task_count = stats_data.get('tasks', 0)
+        
+        stats_content = f"📧 Emails: {email_count} | 🤝 Meetings: {meeting_count} | ✅ Tasks: {task_count}"
+        
+        if tenant_data:
+            stats_content += f" | 📊 Tenant Data: {len(tenant_data.get('items', []))} items"
         
         stats_card = graph.add_node("Card", {
             "title": "📈 Quick Stats",
@@ -2048,11 +2199,233 @@ Be helpful, professional, and provide clear actionable responses."""
         # Merge tenant context with user context
         merged_context = {**context, **tenant_context}
         
-        # Filter UI components based on tenant features
+        # Filter components based on tenant features
         filtered_context = self._filter_components_by_tenant_features(merged_context)
         
-        # Render dashboard with tenant-specific data
+        # Render dashboard with filtered context
         return self.render_ui(UIState.DASHBOARD, filtered_context)
+    
+    # User-Verse Boundary Methods for Enhanced Security
+    def _enforce_user_verse_boundaries(self, target_user_id: str, data_type: str) -> Dict[str, Any]:
+        """
+        Enforce user-verse boundaries for data access
+        
+        Args:
+            target_user_id: The target user whose data is being accessed
+            data_type: Type of data being accessed (emails, meetings, etc.)
+        
+        Returns:
+            User-verse context with access permissions
+        """
+        if not self.tenant_context:
+            logger.warning("No tenant context available for user-verse boundary enforcement")
+            return {"can_access": False, "reason": "No tenant context"}
+        
+        # Get current user ID from tenant context
+        current_user_id = self.tenant_context.get("user_id")
+        if not current_user_id:
+            logger.warning("No user ID in tenant context")
+            return {"can_access": False, "reason": "No user context"}
+        
+        # Get user roles from tenant context
+        user_roles = self.tenant_context.get("user_roles", [])
+        
+        # Import tenant manager for boundary enforcement
+        from tenant_manager import tenant_manager
+        
+        try:
+            # Create a mock TenantUser for boundary checking
+            from tenant_manager import TenantUser
+            current_user = TenantUser(
+                id=current_user_id,
+                tenant_id=self.tenant_context.get("tenant_id"),
+                email=self.tenant_context.get("user_email", "unknown@dhii.ai"),
+                name=self.tenant_context.get("user_name", "Unknown User"),
+                username=self.tenant_context.get("user_username", "unknown"),
+                roles=user_roles,
+                permissions=self.tenant_context.get("user_permissions", [])
+            )
+            
+            # Check user-verse boundaries
+            user_verse_context = tenant_manager.create_user_verse_context(
+                current_user, target_user_id
+            )
+            
+            # Add data type information
+            user_verse_context["data_type"] = data_type
+            user_verse_context["enforcement_timestamp"] = datetime.now().isoformat()
+            
+            logger.info(f"User-verse boundary enforced: {current_user_id} -> {target_user_id} "
+                       f"for {data_type}: {user_verse_context['can_access']}")
+            
+            return user_verse_context
+            
+        except Exception as e:
+            logger.error(f"Error enforcing user-verse boundaries: {e}")
+            return {"can_access": False, "reason": f"Enforcement error: {str(e)}"}
+    
+    def get_user_scoped_data(self, target_user_id: str, data_type: str) -> Dict[str, Any]:
+        """
+        Get user-scoped data with proper boundary enforcement
+        
+        Args:
+            target_user_id: Target user whose data is being accessed
+            data_type: Type of data (emails, meetings, tasks, etc.)
+        
+        Returns:
+            Filtered data based on user-verse boundaries
+        """
+        # Enforce user-verse boundaries first
+        boundary_context = self._enforce_user_verse_boundaries(target_user_id, data_type)
+        
+        if not boundary_context["can_access"]:
+            logger.warning(f"Access denied by user-verse boundaries: {boundary_context['reason']}")
+            return {
+                "data": [],
+                "count": 0,
+                "access_denied": True,
+                "reason": boundary_context["reason"],
+                "boundary_context": boundary_context
+            }
+        
+        # Get current user context for filtering
+        current_user_id = self.tenant_context.get("user_id")
+        tenant_id = self.tenant_context.get("tenant_id")
+        
+        # Filter existing user context data based on boundaries
+        if target_user_id == current_user_id:
+            # User accessing their own data - return full context
+            return {
+                "data": self.user_context.get(f"{data_type}", []),
+                "count": len(self.user_context.get(f"{data_type}", [])),
+                "access_level": "own",
+                "boundary_context": boundary_context
+            }
+        elif boundary_context.get("permission_level") == "tenant":
+            # Tenant admin accessing user data - return filtered view
+            return {
+                "data": self._filter_data_for_admin_access(data_type, target_user_id),
+                "count": len(self._filter_data_for_admin_access(data_type, target_user_id)),
+                "access_level": "tenant_admin",
+                "boundary_context": boundary_context
+            }
+        else:
+            # Should not reach here due to boundary enforcement
+            return {
+                "data": [],
+                "count": 0,
+                "access_denied": True,
+                "reason": "Unexpected access level",
+                "boundary_context": boundary_context
+            }
+    
+    def _filter_data_for_admin_access(self, data_type: str, target_user_id: str) -> List[Dict[str, Any]]:
+        """
+        Filter data for tenant admin access (privacy-preserving)
+        
+        Args:
+            data_type: Type of data to filter
+            target_user_id: Target user whose data is being filtered
+        
+        Returns:
+            Filtered data appropriate for admin viewing
+        """
+        # This is a privacy-preserving filter for admin access
+        # In a real implementation, this would query the database with proper filtering
+        
+        if data_type == "emails":
+            # Admin can see email metadata but not content
+            return [
+                {
+                    "id": f"email_{i}",
+                    "from": "redacted@dhii.ai",
+                    "subject": f"[User {target_user_id[:8]}...] Email Subject {i}",
+                    "timestamp": "2024-01-01T12:00:00Z",
+                    "status": "read",
+                    "admin_view": True
+                }
+                for i in range(5)
+            ]
+        elif data_type == "meetings":
+            # Admin can see meeting metadata
+            return [
+                {
+                    "id": f"meeting_{i}",
+                    "title": f"[User {target_user_id[:8]}...] Meeting {i}",
+                    "start_time": "2024-01-01T14:00:00Z",
+                    "duration": 60,
+                    "participants_count": 3,
+                    "admin_view": True
+                }
+                for i in range(3)
+            ]
+        elif data_type == "tasks":
+            # Admin can see task overview
+            return [
+                {
+                    "id": f"task_{i}",
+                    "title": f"[User {target_user_id[:8]}...] Task {i}",
+                    "status": "in_progress",
+                    "priority": "medium",
+                    "due_date": "2024-01-15",
+                    "admin_view": True
+                }
+                for i in range(4)
+            ]
+        else:
+            return []
+    
+    def render_user_scoped_ui(self, target_user_id: str, ui_state: UIState, 
+                            additional_context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Render UI with user-verse boundary enforcement
+        
+        Args:
+            target_user_id: Target user for UI rendering
+            ui_state: UI state to render
+            additional_context: Additional context for rendering
+        
+        Returns:
+            UI components with boundary enforcement applied
+        """
+        # Determine data types based on UI state
+        data_types = self._get_data_types_for_state(ui_state)
+        
+        # Enforce boundaries for each data type
+        scoped_data = {}
+        for data_type in data_types:
+            scoped_data[data_type] = self.get_user_scoped_data(target_user_id, data_type)
+        
+        # Create filtered context
+        filtered_context = {**self.user_context, **(additional_context or {})}
+        filtered_context.update(scoped_data)
+        
+        # Add boundary information to context
+        boundary_info = {
+            "user_verse_enforced": True,
+            "target_user_id": target_user_id,
+            "access_level": "own" if target_user_id == self.tenant_context.get("user_id") else "admin"
+        }
+        filtered_context.update(boundary_info)
+        
+        # Render UI with filtered context
+        return self.render_ui(ui_state, filtered_context)
+    
+    def _get_data_types_for_state(self, ui_state: UIState) -> List[str]:
+        """Get relevant data types for a given UI state"""
+        state_data_mapping = {
+            UIState.DASHBOARD: ["emails", "meetings", "tasks", "analytics"],
+            UIState.EMAIL_LIST: ["emails"],
+            UIState.EMAIL_DETAIL: ["emails"],
+            UIState.CALENDAR: ["meetings", "events"],
+            UIState.MEETING_LIST: ["meetings"],
+            UIState.MEETING_DETAIL: ["meetings"],
+            UIState.TASK_LIST: ["tasks"],
+            UIState.ANALYTICS: ["analytics"],
+            UIState.CHAT: ["messages"],
+            UIState.SETTINGS: ["preferences"]
+        }
+        return state_data_mapping.get(ui_state, [])
     
     def _filter_components_by_tenant_features(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Filter UI components based on tenant features and permissions"""
@@ -2190,3 +2563,62 @@ Be helpful, professional, and provide clear actionable responses."""
         }
         
         return response
+    
+    def create_orchestrator_output(self, tenant_id: str, user_id: str, state: str, 
+                                   chunks: List[Dict[str, Any]], 
+                                   explanation: str = None) -> OrchestratorOutput:
+        """Create compliant orchestrator output following New Design Spec v1.2 mapping contract"""
+        # Validate chunks against mapping contract
+        for chunk in chunks:
+            if not self.mapping_contract.validate_chunk(chunk):
+                # Create error chunk for invalid chunks
+                error_chunk = {
+                    "type": "ErrorCard",
+                    "title": "Rendering Error",
+                    "message": f"Invalid chunk format: {chunk.get('type', 'unknown')}",
+                    "severity": "error"
+                }
+                # Replace invalid chunk with error card
+                chunks[chunks.index(chunk)] = error_chunk
+        
+        # Create compliant orchestrator output
+        output = OrchestratorOutput(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            state=state,
+            explanation=explanation,
+            chunks=chunks
+        )
+        
+        # Final validation
+        if not self.mapping_contract.validate_orchestrator_output(output):
+            logger.warning("Orchestrator output failed final validation")
+        
+        return output
+    
+    def create_text_block_chunk(self, content: str, tone: str = "neutral", 
+                               collapsible: bool = True, completed: bool = False) -> Dict[str, Any]:
+        """Create TextBlock chunk (New Design Spec v1.2 compliant)"""
+        return {
+            "type": "TextBlock",
+            "content": content,
+            "tone": tone,
+            "collapsible": collapsible,
+            "completed": completed
+        }
+    
+    def create_aggregated_card_chunk(self, title: str, sources: List[str], 
+                                     items: List[Dict[str, Any]], 
+                                     multiple_sources: bool = True,
+                                     partial_rendering: bool = True,
+                                     importance_based_layout: bool = True) -> Dict[str, Any]:
+        """Create AggregatedCard chunk (New Design Spec v1.2 compliant)"""
+        return {
+            "type": "AggregatedCard",
+            "title": title,
+            "sources": sources,
+            "items": items,
+            "multiple_sources": multiple_sources,
+            "partial_rendering": partial_rendering,
+            "importance_based_layout": importance_based_layout
+        }

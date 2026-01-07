@@ -198,10 +198,123 @@ class TenantManager:
         """Enforce tenant isolation - ensure user can only access their tenant resources"""
         return tenant_id == resource_tenant_id
     
+    def enforce_user_verse_boundary(self, user_id: str, resource_user_id: str, 
+                                  permission_level: str = "own", 
+                                  requesting_user_roles: List[str] = None) -> bool:
+        """
+        Enforce user-verse boundaries within tenant
+        
+        Args:
+            user_id: The requesting user's ID
+            resource_user_id: The resource owner's user ID
+            permission_level: "own" (own data only), "team" (team data), "tenant" (all tenant data)
+            requesting_user_roles: Optional list of requesting user's roles for permission checks
+        
+        Returns:
+            True if access is allowed, False otherwise
+        """
+        # Super admin can access everything
+        if permission_level == "super_admin":
+            return True
+            
+        # User can always access their own data
+        if user_id == resource_user_id:
+            return True
+            
+        # Check permission levels
+        if permission_level == "own":
+            return False  # Can only access own data
+        elif permission_level == "team":
+            # Would need team membership lookup in real implementation
+            return False  # For now, no team access
+        elif permission_level == "tenant":
+            # Check if user has tenant-wide permissions using provided roles
+            if requesting_user_roles and "tenant_admin" in requesting_user_roles:
+                return True
+            return False
+            
+        return False
+    
+    def get_user_scoped_data(self, user_id: str, tenant_id: str, data_type: str,
+                           requesting_user: TenantUser) -> Dict[str, Any]:
+        """
+        Get user-scoped data with proper boundary enforcement
+        
+        Args:
+            user_id: Target user ID
+            tenant_id: Tenant ID
+            data_type: Type of data (emails, meetings, etc.)
+            requesting_user: The user making the request
+        
+        Returns:
+            Filtered data based on user-verse boundaries
+        """
+        # First enforce tenant isolation
+        if not self.enforce_tenant_isolation(requesting_user.tenant_id, tenant_id):
+            raise PermissionError("Cross-tenant access denied")
+        
+        # Determine permission level based on user roles
+        permission_level = "own"
+        if "tenant_admin" in requesting_user.roles:
+            permission_level = "tenant"
+        elif "team_lead" in requesting_user.roles:
+            permission_level = "team"
+        
+        # Enforce user-verse boundaries
+        if not self.enforce_user_verse_boundary(
+            requesting_user.id, user_id, permission_level, requesting_user.roles
+        ):
+            raise PermissionError(f"Access denied: insufficient permissions for {data_type}")
+        
+        # Return user-scoped data (mock implementation)
+        return {
+            "user_id": user_id,
+            "tenant_id": tenant_id,
+            "data_type": data_type,
+            "permission_level": permission_level,
+            "can_access": True,
+            "items": [],
+            "count": 0
+        }
+    
+    def create_user_verse_context(self, requesting_user: TenantUser, 
+                                target_user_id: str) -> Dict[str, Any]:
+        """
+        Create a user-verse context for UI rendering
+        
+        Args:
+            requesting_user: The user making the request
+            target_user_id: The target user whose data is being accessed
+        
+        Returns:
+            User-verse context with boundary information
+        """
+        # Determine permission level
+        permission_level = "own"
+        if "tenant_admin" in requesting_user.roles:
+            permission_level = "tenant"
+        elif "team_lead" in requesting_user.roles:
+            permission_level = "team"
+        
+        # Check if access is allowed
+        can_access = self.enforce_user_verse_boundary(
+            requesting_user.id, target_user_id, permission_level, requesting_user.roles
+        )
+        
+        return {
+            "requesting_user_id": requesting_user.id,
+            "target_user_id": target_user_id,
+            "permission_level": permission_level,
+            "can_access": can_access,
+            "is_own_data": requesting_user.id == target_user_id,
+            "is_tenant_admin": "tenant_admin" in requesting_user.roles,
+            "boundary_enforced": True
+        }
+    
     def get_tenant_scoped_data(self, tenant_id: str, data_type: str) -> Dict[str, Any]:
-        """Get tenant-scoped data (emails, meetings, etc.)"""
-        # This would typically query a tenant-scoped database
-        # For now, return mock data
+        """Get tenant-scoped data (emails, meetings, etc.) - DEPRECATED: Use get_user_scoped_data instead"""
+        # This method is deprecated in favor of user-scoped data access
+        logger.warning("get_tenant_scoped_data is deprecated, use get_user_scoped_data for proper user-verse boundaries")
         return {
             "tenant_id": tenant_id,
             "data_type": data_type,
