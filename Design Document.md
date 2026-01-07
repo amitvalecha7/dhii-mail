@@ -1818,6 +1818,776 @@ User: "Show me my emails"
 
 ---
 
+# 15. Plugin Hub Specification
+
+## 15.1 Overview
+
+**Purpose**: Provide a centralized, universal view of all plugins in the system, allowing users to discover, install, configure, and manage plugins from a single interface.
+
+**Philosophy**: Similar to VS Code Extensions, Chrome Web Store, or Shopify App Store - a marketplace feel with transparency and ease of use.
+
+---
+
+## 15.2 Access Points
+
+### Primary Access
+- **Left Ribbon**: Add new top-level item `🔌 Plugin Hub` (positioned above Settings)
+- **Click Behavior**: Streams `PluginRegistryView` into Canvas
+- **Chat Command**: "Show me all plugins", "Open plugin hub"
+
+### Alternative Access
+- **Quick Action**: "Manage Plugins" button in empty state
+- **Settings**: Link from Settings → Integrations
+- **Future**: Dedicated route `/plugins` if routing is added
+
+---
+
+## 15.3 UI Layout
+
+### Main View: 3-Tab Interface
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  🔌 Plugin Hub                                                    [✕]    │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  🔍 [Search plugins...]                    🏷️ [All] [Email] [CRM] [AI]  │
+│                                                                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                      │
+│  │ ● Installed │  │  Available  │  │ Recommended │                      │
+│  │     (5)     │  │    (12)     │  │     (3)     │                      │
+│  └─────────────┘  └─────────────┘  └─────────────┘                      │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  📧 Email Plugin                                    ● Connected    │  │
+│  │  ─────────────────────────────────────────────────────────────────  │  │
+│  │  Send, receive, and manage emails via IMAP/SMTP                   │  │
+│  │                                                                    │  │
+│  │  Version: 2.0.0  |  Updated: 2 days ago  |  Health: ✅ Healthy    │  │
+│  │  Executions: 1,247  |  Avg Response: 234ms  |  Error Rate: 0.02%  │  │
+│  │                                                                    │  │
+│  │  [⚙️ Configure]  [📊 Stats]  [🔄 Restart]  [🗑️ Uninstall]         │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  📅 Calendar Plugin                                 ⚠️ Needs Setup │  │
+│  │  ─────────────────────────────────────────────────────────────────  │  │
+│  │  Sync events from Google Calendar, Outlook, CalDAV                │  │
+│  │                                                                    │  │
+│  │  Version: 1.5.0  |  Updated: 1 week ago  |  Health: ⚠️ Degraded   │  │
+│  │  Executions: 342  |  Avg Response: 1,234ms  |  Error Rate: 5.2%   │  │
+│  │                                                                    │  │
+│  │  [⚙️ Configure]  [📖 Docs]  [🔄 Restart]                           │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  💼 CRM Plugin                                      ● Connected    │  │
+│  │  ─────────────────────────────────────────────────────────────────  │  │
+│  │  Manage deals, contacts, and sales pipeline                       │  │
+│  │                                                                    │  │
+│  │  Version: 1.0.0  |  Updated: 3 days ago  |  Health: ✅ Healthy    │  │
+│  │  Executions: 89  |  Avg Response: 456ms  |  Error Rate: 0.00%     │  │
+│  │                                                                    │  │
+│  │  [⚙️ Configure]  [📊 Stats]  [🔄 Restart]  [🗑️ Uninstall]         │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Available Tab View
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  🔌 Plugin Hub                                                           │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                      │
+│  │  Installed  │  │● Available  │  │ Recommended │                      │
+│  │     (5)     │  │    (12)     │  │     (3)     │                      │
+│  └─────────────┘  └─────────────┘  └─────────────┘                      │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  💬 Slack Integration                               ○ Not Installed│  │
+│  │  ─────────────────────────────────────────────────────────────────  │  │
+│  │  Connect your Slack workspace for unified messaging               │  │
+│  │                                                                    │  │
+│  │  Rating: ⭐⭐⭐⭐⭐ (4.8)  |  Downloads: 1.2k  |  By: dhii-team       │  │
+│  │                                                                    │  │
+│  │  [➕ Install]  [📖 Learn More]                                      │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │  📊 Salesforce CRM                                  ○ Not Installed│  │
+│  │  ─────────────────────────────────────────────────────────────────  │  │
+│  │  Sync deals, contacts, and opportunities from Salesforce          │  │
+│  │                                                                    │  │
+│  │  Rating: ⭐⭐⭐⭐☆ (4.5)  |  Downloads: 856  |  By: dhii-team        │  │
+│  │                                                                    │  │
+│  │  [➕ Install]  [📖 Learn More]                                      │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 15.4 Component Specification
+
+### PluginRegistryCard
+
+```json
+{
+  "component_type": "plugin_registry_card",
+  "component_id": "plugin-email",
+  "props": {
+    "plugin_id": "email",
+    "name": "Email Plugin",
+    "description": "Send, receive, and manage emails via IMAP/SMTP",
+    "version": "2.0.0",
+    "author": "dhii-mail-team",
+    "icon": "📧",
+    "status": "connected",
+    "health": {
+      "status": "healthy",
+      "last_check": "2026-01-08T00:30:00Z",
+      "uptime_percentage": 99.9,
+      "message": null
+    },
+    "capabilities": [
+      {
+        "id": "email.send",
+        "name": "Send Email",
+        "description": "Send emails via SMTP"
+      },
+      {
+        "id": "email.receive",
+        "name": "Receive Email",
+        "description": "Fetch emails via IMAP"
+      },
+      {
+        "id": "email.search",
+        "name": "Search Emails",
+        "description": "Search inbox with filters"
+      }
+    ],
+    "stats": {
+      "total_executions": 1247,
+      "avg_response_time_ms": 234,
+      "error_rate": 0.02,
+      "last_execution": "2026-01-08T00:45:00Z"
+    },
+    "metadata": {
+      "installed_at": "2026-01-01T10:00:00Z",
+      "last_updated": "2026-01-06T14:30:00Z",
+      "size_mb": 2.4,
+      "dependencies": ["pydantic", "aiosmtplib"]
+    },
+    "actions": [
+      {
+        "id": "configure",
+        "label": "Configure",
+        "icon": "⚙️",
+        "action": "configure_plugin",
+        "target": "email"
+      },
+      {
+        "id": "stats",
+        "label": "Stats",
+        "icon": "📊",
+        "action": "view_plugin_stats",
+        "target": "email"
+      },
+      {
+        "id": "restart",
+        "label": "Restart",
+        "icon": "🔄",
+        "action": "restart_plugin",
+        "target": "email",
+        "confirm": true
+      },
+      {
+        "id": "uninstall",
+        "label": "Uninstall",
+        "icon": "🗑️",
+        "action": "uninstall_plugin",
+        "target": "email",
+        "destructive": true,
+        "confirm": true
+      }
+    ]
+  }
+}
+```
+
+### Status Values
+
+| Status | Visual | Meaning | Actions Available |
+|--------|--------|---------|-------------------|
+| `connected` | 🟢 Connected | Plugin active and healthy | Configure, Stats, Restart, Uninstall |
+| `needs_setup` | ⚠️ Needs Setup | Installed but not configured | Configure, Docs, Uninstall |
+| `not_installed` | ⚪ Not Installed | Available for installation | Install, Learn More |
+| `error` | 🔴 Error | Plugin crashed or unhealthy | Configure, Restart, View Logs, Uninstall |
+| `disabled` | ⏸️ Disabled | Manually disabled by user | Enable, Configure, Uninstall |
+| `updating` | 🔄 Updating | Update in progress | (no actions, show progress) |
+
+### Health Status
+
+| Health | Visual | Criteria |
+|--------|--------|----------|
+| `healthy` | ✅ Healthy | Error rate < 1%, Avg response < 1s, Last check < 5min ago |
+| `degraded` | ⚠️ Degraded | Error rate 1-5%, Avg response 1-3s, Last check < 15min ago |
+| `unhealthy` | 🔴 Unhealthy | Error rate > 5%, Avg response > 3s, Last check > 15min ago |
+
+---
+
+## 15.5 A2UI Chunk Types
+
+### Plugin Registry Chunk
+
+```json
+{
+  "chunk_type": "plugin_registry",
+  "chunk_id": "uuid",
+  "view_mode": "installed | available | recommended",
+  "filters": {
+    "category": "all | email | crm | ai | communication",
+    "search_query": "slack"
+  },
+  "plugins": [
+    {
+      "plugin_id": "email",
+      "name": "Email Plugin",
+      "description": "Send, receive, and manage emails via IMAP/SMTP",
+      "version": "2.0.0",
+      "status": "connected",
+      "health": { "status": "healthy", "uptime_percentage": 99.9 },
+      "stats": {
+        "total_executions": 1247,
+        "avg_response_time_ms": 234,
+        "error_rate": 0.02
+      },
+      "actions": [...]
+    },
+    {
+      "plugin_id": "calendar",
+      "name": "Calendar Plugin",
+      "status": "needs_setup",
+      "health": { "status": "degraded", "uptime_percentage": 85.2 },
+      "actions": [...]
+    }
+  ],
+  "display": {
+    "component_type": "plugin_registry_view",
+    "layout": "list",
+    "show_stats": true,
+    "show_health": true
+  }
+}
+```
+
+### Plugin Stats Chunk
+
+```json
+{
+  "chunk_type": "plugin_stats",
+  "chunk_id": "uuid",
+  "plugin_id": "email",
+  "plugin_name": "Email Plugin",
+  "time_range": "last_7_days",
+  "display": {
+    "component_type": "aggregated_card",
+    "props": {
+      "title": "Email Plugin - Performance Stats",
+      "layout": "split_view",
+      "sections": [
+        {
+          "title": "Executions",
+          "component_type": "stat_card",
+          "props": {
+            "value": "1,247",
+            "trend": { "direction": "up", "value": "12%" },
+            "subtitle": "Last 7 days"
+          }
+        },
+        {
+          "title": "Avg Response Time",
+          "component_type": "stat_card",
+          "props": {
+            "value": "234ms",
+            "trend": { "direction": "down", "value": "8%" },
+            "subtitle": "Improved performance"
+          }
+        },
+        {
+          "title": "Error Rate",
+          "component_type": "stat_card",
+          "props": {
+            "value": "0.02%",
+            "trend": { "direction": "down", "value": "50%" },
+            "status": "success"
+          }
+        },
+        {
+          "title": "Usage Over Time",
+          "component_type": "chart_card",
+          "props": {
+            "type": "line",
+            "data": {
+              "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+              "datasets": [{
+                "label": "Executions",
+                "data": [120, 145, 189, 201, 156, 98, 87]
+              }]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## 15.6 User Flows
+
+### Flow 1: View All Plugins
+
+```
+User clicks "🔌 Plugin Hub" in ribbon
+         │
+         ▼
+Backend: GET /api/plugins?view=installed
+         │
+         ▼
+Orchestrator emits plugin_registry chunk
+         │
+         ▼
+Canvas renders PluginRegistryView
+         │
+         ├─ Shows 5 installed plugins
+         ├─ Each with status, health, stats
+         └─ Action buttons for each
+```
+
+### Flow 2: Configure Plugin
+
+```
+User clicks "⚙️ Configure" on Email Plugin
+         │
+         ▼
+Canvas transitions to ConfigCard
+         │
+         ├─ Same as clicking "Email" in ribbon
+         ├─ Shows SMTP/IMAP settings
+         └─ Save & Test button
+```
+
+### Flow 3: View Plugin Stats
+
+```
+User clicks "📊 Stats" on Email Plugin
+         │
+         ▼
+Backend: GET /api/plugins/email/stats?range=7d
+         │
+         ▼
+Orchestrator emits plugin_stats chunk
+         │
+         ▼
+Canvas shows AggregatedCard with:
+         │
+         ├─ Total executions (1,247)
+         ├─ Avg response time (234ms)
+         ├─ Error rate (0.02%)
+         ├─ Usage chart (line graph)
+         └─ Recent errors (if any)
+```
+
+### Flow 4: Install New Plugin
+
+```
+User switches to "Available" tab
+         │
+         ▼
+Backend: GET /api/plugins?view=available
+         │
+         ▼
+Shows "Slack Integration" card
+         │
+User clicks "➕ Install"
+         │
+         ▼
+Confirmation Card appears:
+"Install Slack Integration?
+ • Requires OAuth authentication
+ • Size: 3.2 MB
+ • Permissions: Read/Write messages"
+         │
+User clicks "Install"
+         │
+         ▼
+Backend: POST /api/plugins/slack/install
+         │
+         ├─ Downloads plugin package
+         ├─ Validates manifest.json
+         ├─ Runs security checks
+         └─ Loads into PluginManager
+         │
+         ▼
+Success Card: "Slack installed! Configure now?"
+         │
+User clicks "Configure"
+         │
+         ▼
+OAuth flow begins (redirect to Slack)
+```
+
+### Flow 5: Restart Plugin
+
+```
+User clicks "🔄 Restart" on Calendar Plugin
+         │
+         ▼
+Confirmation Card:
+"Restart Calendar Plugin?
+ This will temporarily interrupt calendar sync."
+         │
+User confirms
+         │
+         ▼
+Backend: POST /api/plugins/calendar/restart
+         │
+         ├─ Calls plugin.on_unload()
+         ├─ Waits for graceful shutdown
+         ├─ Calls plugin.on_load()
+         └─ Calls plugin.on_ready()
+         │
+         ▼
+Toast: "Calendar Plugin restarted successfully ✅"
+         │
+Plugin Hub refreshes (health status updates)
+```
+
+### Flow 6: Uninstall Plugin
+
+```
+User clicks "🗑️ Uninstall" on CRM Plugin
+         │
+         ▼
+Confirmation Card:
+"⚠️ Uninstall CRM Plugin?
+ • All CRM data will be removed
+ • Saved views using CRM will break
+ • This cannot be undone"
+         │
+User types "UNINSTALL" to confirm
+         │
+         ▼
+Backend: DELETE /api/plugins/crm
+         │
+         ├─ Calls plugin.on_unload()
+         ├─ Removes from PluginManager
+         ├─ Deletes plugin files
+         └─ Cleans up database tables
+         │
+         ▼
+Toast: "CRM Plugin uninstalled"
+         │
+Plugin Hub refreshes (plugin removed from list)
+         │
+Ribbon updates (CRM removed from Integrations)
+```
+
+---
+
+## 15.7 Search & Filters
+
+### Search Behavior
+
+```
+User types "email" in search box
+         │
+         ▼
+Frontend filters plugins client-side
+         │
+Matches:
+         ├─ Name contains "email" → Email Plugin
+         ├─ Description contains "email" → Slack (mentions email notifications)
+         └─ Capabilities contain "email" → CRM (has email.send capability)
+```
+
+### Category Filters
+
+| Category | Matches Plugins With |
+|----------|---------------------|
+| All | No filter |
+| Email | `category: "email"` in manifest |
+| CRM | `category: "crm"` in manifest |
+| AI | `category: "ai"` in manifest |
+| Communication | `category: "communication"` in manifest |
+
+---
+
+## 15.8 Plugin Details Modal (Optional Enhancement)
+
+When user clicks "📖 Learn More":
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  📧 Email Plugin - Details                                          [✕]  │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  📖 Overview                                                             │
+│  ────────────────────────────────────────────────────────────────────    │
+│  Full-featured email client with IMAP/SMTP support, threading,          │
+│  attachments, and AI-powered summarization.                              │
+│                                                                          │
+│  🔧 Capabilities                                                         │
+│  ────────────────────────────────────────────────────────────────────    │
+│  • Send emails (email.send)                                              │
+│  • Receive emails (email.receive)                                        │
+│  • Search inbox (email.search)                                           │
+│  • Summarize threads (email.summarize) [AI-powered]                      │
+│                                                                          │
+│  📊 Requirements                                                         │
+│  ────────────────────────────────────────────────────────────────────    │
+│  • IMAP server credentials (host, port, username, password)              │
+│  • SMTP server credentials (host, port, username, password)              │
+│  • Optional: OpenAI API key for summarization                            │
+│                                                                          │
+│  🔒 Permissions                                                          │
+│  ────────────────────────────────────────────────────────────────────    │
+│  • Network: IMAP/SMTP connections                                        │
+│  • Database: Read/write email tables                                     │
+│  • Secrets: Store encrypted credentials                                  │
+│                                                                          │
+│  📜 Changelog                                                            │
+│  ────────────────────────────────────────────────────────────────────    │
+│  v2.0.0 (2026-01-05)                                                     │
+│  • Async/await support                                                   │
+│  • Pydantic validation                                                   │
+│  • Health checks                                                         │
+│  • Improved error handling                                               │
+│                                                                          │
+│  v1.5.0 (2025-12-20)                                                     │
+│  • Thread view support                                                   │
+│  • Attachment handling                                                   │
+│                                                                          │
+│  👤 Author                                                               │
+│  ────────────────────────────────────────────────────────────────────    │
+│  dhii-mail-team                                                          │
+│  📧 support@dhii.ai  |  🌐 https://dhii.ai/plugins/email                 │
+│                                                                          │
+│  [➕ Install]  [📖 Documentation]  [🐛 Report Issue]                     │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 15.9 Backend API Endpoints
+
+### GET /api/plugins
+
+**Query Params**:
+- `view`: `installed | available | recommended`
+- `category`: `all | email | crm | ai | communication`
+- `search`: Search query string
+
+**Response**:
+```json
+{
+  "plugins": [
+    {
+      "plugin_id": "email",
+      "name": "Email Plugin",
+      "version": "2.0.0",
+      "status": "connected",
+      "health": {...},
+      "stats": {...},
+      "actions": [...]
+    }
+  ],
+  "total": 5,
+  "view": "installed"
+}
+```
+
+### GET /api/plugins/{plugin_id}/stats
+
+**Query Params**:
+- `range`: `24h | 7d | 30d | all`
+
+**Response**:
+```json
+{
+  "plugin_id": "email",
+  "time_range": "7d",
+  "total_executions": 1247,
+  "avg_response_time_ms": 234,
+  "error_rate": 0.02,
+  "usage_timeline": [
+    { "date": "2026-01-01", "executions": 120, "errors": 0 },
+    { "date": "2026-01-02", "executions": 145, "errors": 1 }
+  ],
+  "recent_errors": [
+    {
+      "timestamp": "2026-01-07T14:30:00Z",
+      "error_code": "IMAP_TIMEOUT",
+      "message": "Connection timeout after 30s"
+    }
+  ]
+}
+```
+
+### POST /api/plugins/{plugin_id}/install
+
+**Request Body**:
+```json
+{
+  "version": "latest | 2.0.0",
+  "auto_configure": false
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "plugin_id": "slack",
+  "version": "1.0.0",
+  "installed_at": "2026-01-08T00:50:00Z",
+  "next_step": "configure | oauth | ready"
+}
+```
+
+### POST /api/plugins/{plugin_id}/restart
+
+**Response**:
+```json
+{
+  "status": "success",
+  "plugin_id": "calendar",
+  "restarted_at": "2026-01-08T00:51:00Z",
+  "health": {
+    "status": "healthy",
+    "uptime_percentage": 100.0
+  }
+}
+```
+
+### DELETE /api/plugins/{plugin_id}
+
+**Request Body**:
+```json
+{
+  "confirmation": "UNINSTALL",
+  "delete_data": true
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "plugin_id": "crm",
+  "uninstalled_at": "2026-01-08T00:52:00Z",
+  "data_deleted": true
+}
+```
+
+---
+
+## 15.10 Integration with Existing UI
+
+### Left Ribbon Update
+
+```
+┌─────────────────────────────────────────┐
+│  ⚡ Dynamic Interface                   │
+├─────────────────────────────────────────┤
+│  🏠 Home                                │
+├─────────────────────────────────────────┤
+│  🔌 Plugin Hub                    NEW   │  ← NEW ITEM
+├─────────────────────────────────────────┤
+│  INTEGRATIONS                           │
+│  ● Email                              ⚙️│
+│  ● Calendar                           ⚙️│
+│  + Add Integration                      │
+├─────────────────────────────────────────┤
+│  MY RULES                               │
+│  ...                                    │
+└─────────────────────────────────────────┘
+```
+
+### Chat Integration
+
+| User Prompt | System Response |
+|-------------|----------------|
+| "Show me all plugins" | Opens Plugin Hub (Installed tab) |
+| "Install Slack plugin" | Opens Available tab, highlights Slack, shows Install button |
+| "What plugins do I have?" | Lists installed plugins in MarkdownCard |
+| "Restart email plugin" | Confirmation → Restart → Toast notification |
+| "Plugin stats for calendar" | Opens plugin stats view for calendar |
+
+---
+
+## 15.11 Future Enhancements
+
+### Phase 1: Basic Registry (Current Spec)
+- ✅ View installed plugins
+- ✅ Configure, restart, uninstall
+- ✅ Health monitoring
+- ✅ Basic stats
+
+### Phase 2: Marketplace
+- 🔮 Public plugin registry
+- 🔮 Ratings & reviews
+- 🔮 Plugin screenshots/demos
+- 🔮 Version history & rollback
+
+### Phase 3: Advanced Management
+- 🔮 Auto-updates with notifications
+- 🔮 Dependency graph visualization
+- 🔮 Resource usage monitoring (CPU, memory)
+- 🔮 Plugin sandboxing details (permissions, limits)
+- 🔮 A/B testing (enable/disable for experiments)
+
+### Phase 4: Developer Tools
+- 🔮 Plugin development SDK
+- 🔮 Local plugin testing
+- 🔮 Plugin debugging console
+- 🔮 Performance profiling
+
+---
+
+## 15.12 Design Tokens (Plugin Hub Specific)
+
+```css
+:root {
+  /* Plugin Status Colors */
+  --plugin-connected: #10B981;
+  --plugin-needs-setup: #F59E0B;
+  --plugin-error: #EF4444;
+  --plugin-disabled: #9CA3AF;
+  --plugin-updating: #3B82F6;
+  
+  /* Health Status Colors */
+  --health-healthy: #10B981;
+  --health-degraded: #F59E0B;
+  --health-unhealthy: #EF4444;
+  
+  /* Plugin Card */
+  --plugin-card-padding: 20px;
+  --plugin-card-gap: 16px;
+  --plugin-card-border-radius: 8px;
+  --plugin-card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+```
+
+---
+
 # 14. Accessibility
 
 ## 14.1 Requirements
