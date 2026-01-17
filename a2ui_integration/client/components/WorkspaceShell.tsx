@@ -26,14 +26,37 @@ const WorkspaceShell: React.FC<WorkspaceShellProps> = ({ user, currentScreen, on
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
-    const userMsg: ChatMessage = { role: 'user', text: inputValue, timestamp: new Date() };
+
+    const prompt = inputValue;
+    const userMsg: ChatMessage = { role: 'user', text: prompt, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsTyping(true);
 
-    const responseText = await sendMessageToGemini(inputValue);
-    setIsTyping(false);
-    setMessages(prev => [...prev, { role: 'model', text: responseText || "Neural link failure.", timestamp: new Date() }]);
+    try {
+      const result = await kernelBridge.sendChat(prompt);
+      const responseText =
+        typeof result?.response === 'string' && result.response.trim().length > 0
+          ? result.response
+          : 'Neural link failure.';
+
+      setMessages(prev => [
+        ...prev,
+        { role: 'model', text: responseText, timestamp: new Date() }
+      ]);
+    } catch (error) {
+      console.error('Chat error:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'model',
+          text: 'Neural link failure. Please try again.',
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const NavItem = ({ icon, label, target }: { icon: string; label: string; target: AppScreen }) => {
