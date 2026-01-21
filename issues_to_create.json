@@ -1,0 +1,307 @@
+[
+  {
+    "title": "[A2] AI Mail augmentations",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nUsers can use AI features on email (summaries, task extraction, draft replies) wired through the Kernel tools, not ad‑hoc frontend prompts.\n\nThis epic focuses on the Mail-side UX and Kernel tools that implement augmentations.",
+    "parent": null
+  },
+  {
+    "title": "[A2.1] Design AI mail augmentation tools & prompts",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[A2] AI Mail augmentations",
+    "description": "**Outcome**\nClear contract for AI mail operations exposed as Kernel tools and corresponding UI affordances.\n\n**Design spec (high level)**\n- Define tool set: `mail.summarize_thread`, `mail.extract_tasks`, `mail.draft_reply`.\n- For each tool, define input/output Pydantic models (threadId, options; summary, tasks, draft body).\n- Draft prompt templates (server-side) referencing context from K3.\n- Decide on how results appear in A2UI (e.g. summary panel, suggested tasks, reply editor prefill).\n\n**Required packages (Python requirements.txt)**\n- Reuse LLM SDK chosen in K2 (no new providers)."
+  },
+
+  {
+    "title": "[A4] Tasks application v1",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nUsers can create, view, and update tasks inside dhii-mail, including tasks created directly from email, using a shared Tasks domain model with the backend and Kernel.\n\nThis epic focuses on Tasks UI/UX and domain modeling; Linear sync lives under B5.",
+    "parent": null
+  },
+  {
+    "title": "[A4.1] Design Tasks domain models & /api/tasks contracts",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[A4] Tasks application v1",
+    "description": "**Design spec: Tasks domain models & /api/tasks contracts (v1)**\n\n**Python models**\n- `TaskStatus`: `todo|in_progress|done|cancelled`.\n- `TaskSource`: `manual|email|calendar|linear`.\n- `Task`: id, tenantId, userId, title, description, status, priority?, dueDate?, createdAt, updatedAt, source, sourceRef?, labels[].\n\n**REST API `/api/tasks`**\n- `GET /api/tasks` (status?, label?, source?, q?, limit?, cursor?) → `{ items: Task[], nextCursor }`.\n- `GET /api/tasks/{task_id}` → `{ task }`.\n- `POST /api/tasks` → `{ task }`.\n- `PATCH /api/tasks/{task_id}` → `{ task }`.\n- Optional `POST /api/tasks/{task_id}/actions` (start/complete/cancel) → `{ status, task }`.\n\n**TypeScript models**\n- `TaskStatus`, `TaskSource`, `Task` (mirroring Python fields).\n\n**Required packages (Python requirements.txt)**\n- Reuse `pydantic`, `fastapi`, `sqlalchemy`."
+  },
+
+  {
+    "title": "[B1] Core API & DB schema",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nA coherent backend exposing auth, tenants, users, and core resources (mail, calendar, tasks) over a normalized Postgres schema, used by all other services.",
+    "parent": null
+  },
+  {
+    "title": "[B1.1] Design core DB schema & service layout",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[B1] Core API & DB schema",
+    "description": "**Outcome**\nAgreed schema for tenants, users, memberships, and core resource tables, with initial Alembic migrations.\n\n**Design spec (high level)**\n- Tables: `tenants`, `users`, `tenant_memberships`, plus mail/calendar/tasks tables referenced in their own epics.\n- Decide DB naming conventions and versioning strategy.\n- Define service layout: FastAPI app modules for `auth`, `tenants`, `users`, `mail`, `calendar`, `tasks`.\n- Plan initial Alembic migration set.\n\n**Required packages (Python)**\n- `sqlalchemy`, `alembic` (if not already present)."
+  },
+
+  {
+    "title": "[B2] Auth & multi-tenancy foundations",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nUsers authenticate, belong to tenants/workspaces, and all API calls are consistently tenant-scoped with proper session handling.",
+    "parent": null
+  },
+  {
+    "title": "[B2.1] Design auth flows, token model & tenant scoping",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[B2] Auth & multi-tenancy foundations",
+    "description": "**Design spec: Auth & multi-tenancy**\n\n**Auth**\n- Decide on JWT/PASETO payload fields (sub, tenantId, roles, exp, iat, jti).\n- Define refresh token storage model.\n- Map frontend flows (F4) to backend endpoints.\n\n**Multi-tenancy**\n- Model `tenant_memberships` (userId, tenantId, roles[]).\n- Define middleware that injects tenant/user into request context and enforces tenant scoping.\n\n**Required packages (Python)**\n- `pyjwt` or `python-jose[cryptography]`.\n- `passlib[bcrypt]` for password hashing."
+  },
+
+  {
+    "title": "[B5] Tasks backend with Linear sync",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nTasks backend exposes a unified tasks API and can sync tasks to/from Linear where configured, keeping dhii-mail tasks and Linear issues aligned.",
+    "parent": null
+  },
+  {
+    "title": "[B5.1] Design Tasks backend & Linear sync contracts",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[B5] Tasks backend with Linear sync",
+    "description": "**Design spec: Tasks backend & Linear sync**\n\n**DB**\n- `tasks` table mirroring Task model.\n- `task_linear_sync` table: taskId, linearIssueId, linearTeamId, linearProjectId?, lastSyncedAt, direction.\n\n**Services**\n- `TaskLinearSyncService.ensure_synced_task(...)` and `sync_from_linear(...)` using existing Linear client.\n\n**Required packages (Python)**\n- Reuse existing Linear client deps only (no new heavy libs)."
+  },
+
+  {
+    "title": "[B6] Background jobs & scheduling",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nMail/calendar sync, AI summarization, and other long-running work are handled asynchronously with retries and monitoring.",
+    "parent": null
+  },
+  {
+    "title": "[B6.1] Design job queue & worker contracts",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[B6] Background jobs & scheduling",
+    "description": "**Design spec: Job queue & workers**\n\n- Choose job queue (Celery/RQ/Arq) with Redis.\n- Define worker entrypoints for mail sync, calendar sync, AI tasks.\n- Define job payload schema (tenantId, userId, resource ids) as Pydantic models.\n\n**Required packages (Python)**\n- One queue library (e.g. `rq` or `arq`), plus `redis`."
+  },
+
+  {
+    "title": "[P1] Plugin model & registry",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nCentral registry for all installed plugins per tenant, with metadata and config stored in DB and surfaced via API.",
+    "parent": null
+  },
+  {
+    "title": "[P1.1] Design plugin manifest & registry schema",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[P1] Plugin model & registry",
+    "description": "**Design spec: Plugin manifest & registry**\n\n- Plugin metadata: name, description, capabilities, config schema, version, scopes, author.\n- DB tables: `plugins`, `plugin_installations` per tenant.\n- API: list/install/enable/disable plugins.\n\n**Required packages (Python)**\n- Reuse `sqlalchemy`, `pydantic`."
+  },
+
+  {
+    "title": "[P2] Plugin execution runtime",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nKernel can call plugin capabilities via a sandboxed, observable execution path (HTTP-based or function-based).",
+    "parent": null
+  },
+  {
+    "title": "[P2.1] Design plugin execution API & safety model",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[P2] Plugin execution runtime",
+    "description": "**Design spec: Plugin execution**\n\n- Define plugin capability schema (name, input/output JSON schema).\n- Define call contract: Kernel → Plugin (HTTP POST /execute or similar).\n- Timeouts, retries, logging of inputs/outputs (sanitized).\n\n**Required packages (Python)**\n- `httpx` for plugin HTTP calls (if using HTTP model)."
+  },
+
+  {
+    "title": "[P3] Plugin developer SDK & examples",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nDevelopers can build plugins quickly using a documented SDK and reference examples.",
+    "parent": null
+  },
+  {
+    "title": "[P3.1] Define plugin SDK surface & example plugins",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[P3] Plugin developer SDK & examples",
+    "description": "**Design spec: Plugin SDK**\n\n- Define handler signature (input, context, logger, output).\n- Provide helpers for config parsing and logging.\n- Plan sample plugins (e.g. CRM integration, webhook forwarder)."
+  },
+
+  {
+    "title": "[P4] Plugin marketplace UI",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nAdmins can browse, search, and install plugins from an in-app marketplace.",
+    "parent": null
+  },
+  {
+    "title": "[P4.1] Design marketplace views & install flows",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[P4] Plugin marketplace UI",
+    "description": "**Design spec: Marketplace UI**\n\n- Marketplace list view (name, category, rating, install button).\n- Plugin detail page (description, scopes/permissions, config).\n- Install/configure modal flows wired to plugin registry APIs."
+  },
+
+  {
+    "title": "[I1] Local environment & Docker",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nDevelopers can bring up a full local stack (frontend, kernel, backend, DB, Redis, etc.) with one command.",
+    "parent": null
+  },
+  {
+    "title": "[I1.1] Finalize Docker-compose stack & dev workflow",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[I1] Local environment & Docker",
+    "description": "**Design spec: Local stack**\n\n- Decide container boundaries (frontend, kernel, backend, DB, Redis).\n- Standardize environment variables and .env templates.\n- Define `make up/down/logs` or equivalent commands.\n\n**Required packages (Python)**\n- None; infra-only."
+  },
+
+  {
+    "title": "[I2] Continuous Integration pipelines",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nEvery PR runs tests, linters, and basic quality checks before merge.",
+    "parent": null
+  },
+  {
+    "title": "[I2.1] Define CI workflows for frontend & backend",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[I2] Continuous Integration pipelines",
+    "description": "**Design spec: CI**\n\n- Backend: pytest, mypy, ruff.\n- Frontend: tests, lint, typecheck.\n- Define required checks for main branch."
+  },
+
+  {
+    "title": "[I3] Staging & production environments",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nReproducible staging and production environments defined as code.",
+    "parent": null
+  },
+  {
+    "title": "[I3.1] Design IaC layout & deployment strategy",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[I3] Staging & production environments",
+    "description": "**Design spec: IaC & deploys**\n\n- Choose Terraform/Pulumi.\n- Define modules for app servers, DB, Redis, storage.\n- Decide deployment flow (CI → staging → prod)."
+  },
+
+  {
+    "title": "[I4] Observability stack",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nWe can see logs, metrics, and traces across services for debugging and SLOs.",
+    "parent": null
+  },
+  {
+    "title": "[I4.1] Design logging, metrics & tracing deployment",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[I4] Observability stack",
+    "description": "**Design spec: Observability infra**\n\n- Decide on log sink (e.g. Loki/ELK) and metrics (Prometheus/Grafana or hosted).\n- Plan OpenTelemetry collector deployment.\n- Map Kernel/Backend metrics to dashboards."
+  },
+
+  {
+    "title": "[I5] Security & compliance baseline",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nInitial security posture suitable for early customers (secrets, TLS, basic hardening).",
+    "parent": null
+  },
+  {
+    "title": "[I5.1] Define security baseline & threat model v1",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[I5] Security & compliance baseline",
+    "description": "**Design spec: Security baseline**\n\n- Secrets management approach (Vault/SSM/env conventions).\n- Container hardening guidelines.\n- TLS everywhere, storage encryption choices.\n- Initial threat model and follow-up tickets."
+  },
+
+  {
+    "title": "[X1] Product & UX alignment",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nEngineering work stays aligned with a coherent product story and design language.",
+    "parent": null
+  },
+  {
+    "title": "[X1.1] Define PRD and design system baseline",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[X1] Product & UX alignment",
+    "description": "**Design spec: Product & design**\n\n- PRD template for major features (Mail, Calendar, Tasks, Plugins).\n- Initial design tokens/components.\n- Cadence for product/UX/eng review."
+  },
+
+  {
+    "title": "[X2] Data & product analytics",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nWe can measure activation, retention, and key behaviors (AI-assisted actions, inbox triage).",
+    "parent": null
+  },
+  {
+    "title": "[X2.1] Design core analytics events & dashboards",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[X2] Data & product analytics",
+    "description": "**Design spec: Analytics**\n\n- Define event schema for key flows (login, first workspace, AI action used, task completed).\n- Decide on analytics tool (PostHog, Segment, etc.).\n- Define initial dashboards (activation funnel, AI usage)."
+  },
+
+  {
+    "title": "[X3] Documentation & knowledge base",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Feature"],
+    "description": "**Outcome**\nEngineers and early customers can understand and use the system without guesswork.",
+    "parent": null
+  },
+  {
+    "title": "[X3.1] Define docs structure & tooling",
+    "team": "Vitron",
+    "project": "Dhii-Mail SaaS – v1 Architecture & Delivery",
+    "labels": ["Improvement"],
+    "parent": "[X3] Documentation & knowledge base",
+    "description": "**Design spec: Docs**\n\n- Decide on docs toolchain (MkDocs/Docusaurus/etc.).\n- Outline sections: architecture, API reference, plugin guide.\n- Plan how docs stay in sync with code (CI checks, ownership)."
+  }
+]

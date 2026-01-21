@@ -7,7 +7,7 @@ COPY a2ui_integration/client/ .
 RUN npm run build
 
 # Stage 2: Python Backend
-FROM python:3.12-slim
+FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies (build tools + FFmpeg libs for audio/video/PyAV and native wheels)
