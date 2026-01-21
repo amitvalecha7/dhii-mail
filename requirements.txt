@@ -20,7 +20,7 @@ jsonref==1.1.0                      # JSON reference resolution
 # SSE (Server-Sent Events) for A2UI Streaming
 sse-starlette==1.8.2                # SSE for FastAPI/Starlette
 aiohttp-sse==2.2.0                  # SSE for aiohttp
-aiohttp-sse-client==0.2.1           # SSE client
+# aiohttp-sse-client==0.2.1         # SSE client (unused; removed to avoid cchardet build issues on Python 3.12)
 sseclient-py==1.8.0                 # SSE client library
 
 # Real-time Communication
