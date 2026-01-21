@@ -10,10 +10,21 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (build tools + FFmpeg libs for audio/video/PyAV and native wheels)
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
     curl \
+    pkg-config \
+    zlib1g-dev \
+    libportaudio2 \
+    portaudio19-dev \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libswresample-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

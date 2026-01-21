@@ -1,47 +1,844 @@
-# Core Framework
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
-pydantic>=2.5.0
+# ============================================================================
+# Dhii-Mail Production Dependencies - Enterprise Edition
+# Python 3.10+
+# Last Updated: 2026-01-08
+# Total Packages: 260+
+# ============================================================================
 
+# ============================================================================
+# A2UI Protocol & Framework (Adaptive Agent-to-UI)
+# ============================================================================
+# A2UI Core (if available as package, otherwise custom implementation)
+# a2ui-python==1.0.0                # A2UI Python SDK (when available)
+
+# JSON Schema & Validation for A2UI
+jsonschema==4.20.0                  # JSON schema validation
+pydantic==2.5.3                     # Runtime validation (already listed)
+# json-schema-for-humans==0.47      # Generate docs from JSON schema (optional; conflicts on dataclasses-json version)
+jsonref==1.1.0                      # JSON reference resolution
+
+# SSE (Server-Sent Events) for A2UI Streaming
+sse-starlette==1.8.2                # SSE for FastAPI/Starlette
+aiohttp-sse==2.2.0                  # SSE for aiohttp
+aiohttp-sse-client==0.2.1           # SSE client
+sseclient-py==1.8.0                 # SSE client library
+
+# Real-time Communication
+websockets==12.0                    # WebSocket support
+python-socketio==5.10.0             # Socket.IO
+channels==4.0.0                     # Django Channels (if needed)
+channels-redis==4.1.0               # Redis layer for Channels
+
+# JSON Streaming & Parsing
+ijson==3.2.3                        # Iterative JSON parser
+jsonlines==4.0.0                    # JSON Lines format
+ndjson==0.3.1                       # Newline-delimited JSON
+
+# Graph & Tree Structures (for A2UI component trees)
+networkx==3.2.1                     # Graph algorithms
+anytree==2.12.1                     # Tree data structures
+treelib==1.7.0                      # Tree visualization
+
+# ============================================================================
+# Dhii-Mail Specific Stack Components
+# ============================================================================
+# Intent Parsing & NLU
+spacy==3.7.2                        # NLP for intent understanding
+transformers==4.36.2                # Transformer models
+sentence-transformers==2.3.1        # Sentence embeddings for semantic search
+
+# Conversation Context Management
+redis==5.0.1                        # Session/context storage
+msgpack==1.0.7                      # Efficient serialization
+
+# Plugin Sandboxing & Isolation
+restrictedpython==7.0               # Restricted Python execution
+# pysandbox==1.0.4                  # Python sandbox (disabled: not available on PyPI)
+# seccomp==0.1.0                    # Secure computing mode (disabled: not available on this build environment)
+# Capability Matching & Routing
+fuzzywuzzy==0.18.0                  # Fuzzy string matching
+python-levenshtein==0.23.0          # Fast string matching
+rapidfuzz==3.6.1                    # Fast fuzzy matching
+
+# Layout Composition & Grid Algorithms
+cssutils==2.9.0                     # CSS parsing for layout
+tinycss2==1.2.1                     # CSS parser
+
+# Component Registry & Discovery
+stevedore==5.1.0                    # Plugin discovery
+pluggy==1.3.0                       # Plugin system
+importlib-metadata==6.11.0          # Package metadata (kept <7.0.0 to satisfy cohere 4.39)
+
+# ============================================================================
+# Dhii-Mail UI State Management
+# ============================================================================
+# State Synchronization
+python-socketio==5.10.0             # Real-time state sync
+# redis-py-cluster==2.1.3           # Distributed Redis cluster (unused; conflicts with redis>=4.5 required by channels-redis)
+
+# Event Sourcing (for UI state history)
+eventsourcing==9.2.22               # Event sourcing framework (latest 9.2.x)
+# kafka-python==2.0.2               # Kafka for event streaming (optional)
+
+# ============================================================================
+# Core Web Framework & Server
+# ============================================================================
+fastapi==0.109.0                    # Modern async web framework
+uvicorn[standard]==0.27.0           # ASGI server with WebSocket & HTTP/2
+starlette==0.35.1                   # ASGI framework (FastAPI core)
+python-multipart==0.0.6             # Form data & file upload parsing
+gunicorn==21.2.0                    # Production WSGI server
+hypercorn==0.16.0                   # Alternative ASGI server (HTTP/2, HTTP/3)
+
+# Request/Response Enhancement
+orjson==3.9.12                      # Fast JSON serialization
+ujson==5.9.0                        # Ultra-fast JSON parser
+msgpack==1.0.7                      # Binary serialization (faster than JSON)
+python-rapidjson==1.14              # Rapid JSON C++ library wrapper
+
+# ============================================================================
+# Database & ORM
+# ============================================================================
+# PostgreSQL (Production Primary)
+psycopg2-binary==2.9.9              # PostgreSQL adapter
+psycopg==3.1.16                     # Modern PostgreSQL adapter (async)
+asyncpg==0.29.0                     # Fast async PostgreSQL driver
+SQLAlchemy==2.0.25                  # ORM and query builder
+alembic==1.13.1                     # Database migrations
+sqlalchemy-utils==0.41.1            # Extra utilities for SQLAlchemy
+
+# SQLite (Development/Testing)
+aiosqlite==0.19.0                   # Async SQLite support
+
+# Database Connection Pooling
+psycopg2-pool==1.1                  # Connection pooling for PostgreSQL
+# sqlalchemy-pool==1.0.0            # Advanced pooling (disabled: package not available on PyPI)
+# Database Utilities
+# databases==0.8.0                  # Async database support (unused; conflicts with SQLAlchemy 2.x)
+sqlparse==0.4.4                     # SQL formatting and parsing
+
+# ============================================================================
+# Data Validation & Serialization
+# ============================================================================
+pydantic==2.5.3                     # Data validation using type hints
+pydantic-settings==2.1.0            # Settings management
+pydantic-extra-types==2.3.0         # Additional Pydantic types
+email-validator==2.1.0              # Email validation for Pydantic
+phonenumbers==8.13.27               # Phone number validation
+python-slugify==8.0.1               # URL-safe slug generation
+
+# Schema Validation
+jsonschema==4.20.0                  # JSON schema validation
+marshmallow==3.20.2                 # Object serialization/deserialization
+attrs==23.2.0                       # Classes without boilerplate
+
+# ============================================================================
 # Authentication & Security
-pyseto>=1.7.0
-python-multipart>=0.0.6
-bcrypt>=4.1.0
+# ============================================================================
+# JWT & Token Management
+python-jose[cryptography]==3.3.0    # JWT encoding/decoding
+pyjwt==2.8.0                        # Alternative JWT library
+itsdangerous==2.1.2                 # Secure token generation
 
-# Database
-sqlalchemy>=2.0.0
-aiosqlite>=0.19.0
-alembic>=1.13.0
+# Password Hashing
+passlib[bcrypt]==1.7.4              # Password hashing framework
+bcrypt==4.1.2                       # Bcrypt algorithm
+argon2-cffi==23.1.0                 # Argon2 (modern password hashing)
 
-# Communication
-websockets>=12.0
-aiosmtplib>=3.0.1
-httpx>=0.27.0
+# Encryption
+cryptography==41.0.7                # Fernet encryption, SSL/TLS
+pycryptodome==3.20.0                # Cryptographic library
+pynacl==1.5.0                       # Modern encryption (libsodium, provides 'nacl' module)
+# OAuth2 & SSO
+authlib==1.3.0                      # OAuth 2.0/OpenID Connect
+python-social-auth==0.3.6           # Social authentication
+oauthlib==3.2.2                     # OAuth framework
 
-# Local SMTP Server
-aiosmtpd>=1.4.4
-email-validator>=2.1.0
-mail-parser>=3.15.0
+# Security Headers & CORS
+secure==0.3.0                       # Security headers
+# python-cors==1.0.0                # CORS handling (disabled: package not available on PyPI)
+# Environment & Secrets
+python-dotenv==1.0.0                # .env file support
+environs==10.3.0                    # Environment parsing
+python-decouple==3.8                # Settings from environment
 
-# Calendar Sync
-icalendar>=5.0.0
-caldav>=1.3.0
+# ============================================================================
+# Caching & Session Management
+# ============================================================================
+redis==5.0.1                        # Redis client
+hiredis==2.3.2                      # C parser for Redis (performance)
+# redis-om==0.2.1                   # Object mapping for Redis (unused; ties Pydantic to <2.1.0)
+aioredis==2.0.1                     # Async Redis client
+python-memcached==1.59              # Memcached client (alternative)
+aiocache==0.12.2                    # Async caching framework
+cachetools==5.3.2                   # In-memory caching utilities
+diskcache==5.6.3                    # Disk-based cache
 
-# File Operations
-aiofiles>=23.2.0
+# ============================================================================
+# Billing & Payments
+# ============================================================================
+stripe==7.9.0                       # Stripe payment gateway
+# paddle-billing==1.0.0             # Paddle (alternative)
+# paypalrestsdk==1.13.1             # PayPal (alternative)
+# razorpay==1.4.1                   # Razorpay (India)
 
-# Voice Processing (Optional)
-faster-whisper>=0.10.0
+# Invoice Generation
+invoice2data==0.4.4                 # Invoice data extraction
+# weasyprint==60.2                  # PDF invoice generation (see PDF section)
 
-# Monitoring & Reliability
-structlog>=23.2.0
-tenacity>=8.2.0
-opentelemetry-api>=1.20.0
-opentelemetry-sdk>=1.20.0
-opentelemetry-instrumentation-fastapi>=0.40b0
-opentelemetry-exporter-otlp>=1.20.0
+# ============================================================================
+# AI/LLM Integration
+# ============================================================================
+# Major Cloud Providers
+google-generativeai==0.3.2          # Google Gemini API
+openai==1.7.2                       # OpenAI GPT API
+anthropic==0.8.1                    # Anthropic Claude API
+cohere==4.39                        # Cohere API
+together==0.2.10                    # Together AI
 
-# Development Tools
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-black>=23.12.0
+# Multi-Provider & Local LLM Support
+# openrouter==0.1.1                 # OpenRouter Python SDK (unused; app calls OpenRouter via HTTP directly and this SDK forces Pydantic>=2.11)
+# ollama==0.1.6                     # [AI extras] Ollama local LLM client (local model hosting; not used in current CPU/API-only flow)
+# litellm==1.17.9                   # [AI extras] Unified interface for 100+ LLMs (multi-provider router; unused)
+# langchain==0.1.0                  # [AI extras] LLM application framework (unused by current code)
+# langchain-community==0.0.10       # [AI extras] Community integrations for LangChain (unused)
+# llama-index==0.9.30               # [AI extras] Data framework for LLM apps / RAG (unused)
+
+# Token Management & Utilities
+tiktoken==0.5.2                     # Token counting (OpenAI)
+transformers==4.36.2                # Hugging Face transformers
+sentence-transformers==2.3.1        # Sentence embeddings
+tokenizers==0.15.0                  # Fast tokenization
+
+# Vector Databases (for RAG)
+# chromadb==0.4.22                  # [AI extras] Local vector DB for RAG (unused)
+# pinecone-client==3.0.0            # [AI extras] Pinecone vector DB client (unused)
+# qdrant-client==1.7.0              # [AI extras] Qdrant vector DB client (unused)
+# weaviate-client==3.26.2           # [AI extras] Weaviate vector DB client (unused)
+
+# ============================================================================
+# Speech Recognition & Transcription (for Meeting Recording)
+# ============================================================================
+# OpenAI Whisper (Primary - Self-hosted, Free, Highly Accurate)
+# openai-whisper==20231117          # [AI extras] Local Whisper transcription (heavy, GPU-capable; not used)
+# faster-whisper==0.10.0            # [AI extras] Faster Whisper via CTranslate2 (unused)
+
+# Alternative Speech Recognition
+# vosk==0.3.45                      # [AI extras] Offline Vosk STT (unused)
+speechrecognition==3.10.1           # Universal speech recognition library
+
+# Cloud Speech-to-Text Services (Optional)
+google-cloud-speech==2.24.0         # Google Cloud Speech-to-Text
+# azure-cognitiveservices-speech==1.34.0  # Azure Speech (uncomment if needed)
+# amazon-transcribe==0.6.2          # AWS Transcribe (uncomment if needed)
+
+# Audio Processing & Manipulation
+pydub==0.25.1                       # Audio manipulation
+ffmpeg-python==0.2.0                # FFmpeg wrapper for audio/video
+soundfile==0.12.1                   # Audio file I/O
+librosa==0.10.1                     # Audio analysis and feature extraction
+audioread==3.0.1                    # Audio file reading
+mutagen==1.47.0                     # Audio metadata
+
+# Voice Activity Detection
+webrtcvad==2.0.10                   # Voice activity detection (VAD)
+# py-webrtcvad==2.0.10              # WebRTC VAD wrapper (no such package on PyPI; use webrtcvad)
+
+# Real-time Audio I/O
+# pyaudio==0.2.14                   # [AI extras] Audio I/O (PortAudio; required only for live recording)
+# sounddevice==0.4.6                # Alternative audio I/O (uncomment if needed)
+
+# Speaker Diarization (Who spoke when)
+# pyannote-audio==3.1.1             # [AI extras] Speaker diarization (heavy torch dependency; unused)
+# resemblyzer==0.1.1.dev0           # [AI extras] Speaker verification (unused)
+# speechbrain==0.5.16               # [AI extras] Speech processing toolkit (unused)
+
+# Subtitle Generation
+pysrt==1.1.2                        # SRT subtitle files
+webvtt-py==0.4.6                    # WebVTT subtitle files
+srt==3.5.3                          # SRT utilities
+
+# Audio Format Conversion
+wave==0.0.2                         # WAV file handling (built-in, listed for clarity)
+
+
+# ============================================================================
+# Email Integration (IMAP/SMTP) - COMPREHENSIVE
+# ============================================================================
+# IMAP/SMTP Clients
+imapclient==3.0.1                   # High-level IMAP client
+imaplib2==3.6                       # Advanced IMAP with IDLE support
+aiosmtplib==3.0.1                   # Async SMTP client
+# smtplib2==0.1.0                   # Enhanced SMTP library (no such package on PyPI; use built-in smtplib or secure-smtplib)
+
+# Email Parsing & Processing
+email-reply-parser==0.5.12          # Parse email threads
+flanker==0.9.11                     # Email address parsing
+mail-parser==3.15.0                 # Advanced email parser
+# python-email==0.0.5               # Email utilities (no such package on PyPI; placeholder)
+# mailbox-reader==0.1.0             # Mailbox format reader (no such package on PyPI; use built-in mailbox)
+
+# MIME & Message Handling
+python-magic==0.4.27                # File type detection
+# python-magic-bin==0.4.14          # Windows binary (Windows-only; not for Linux Docker)
+email-validator==2.1.0              # Email validation
+
+# HTML/Text Conversion
+html2text==2020.1.16                # HTML to plain text
+beautifulsoup4==4.12.3              # HTML parsing
+lxml==5.1.0                         # Fast XML/HTML parser
+bleach==6.1.0                       # HTML sanitization
+premailer==3.10.0                   # Inline CSS for emails
+css-inline==0.11.2                  # Fast CSS inlining
+
+# Email Template Rendering
+jinja2==3.1.3                       # Template engine
+markdown==3.5.2                     # Markdown to HTML
+markdown2==2.4.12                   # Alternative Markdown parser
+mistune==3.0.2                      # Fast Markdown parser
+mako==1.3.0                         # Alternative template engine
+
+# Attachment Handling (Office Documents)
+python-docx==1.1.0                  # Word documents (.docx)
+PyPDF2==3.0.1                       # PDF parsing
+pypdf==4.0.1                        # Modern PDF library
+pdfplumber==0.10.3                  # PDF data extraction
+openpyxl==3.1.2                     # Excel files (.xlsx)
+xlrd==2.0.1                         # Excel files (.xls)
+xlsxwriter==3.1.9                   # Excel file creation
+python-pptx==0.6.23                 # PowerPoint files (.pptx)
+odfpy==1.4.1                        # OpenDocument Format (LibreOffice)
+
+# Email Signature & Quote Detection
+talon==1.4.4                        # Signature detection
+# mailparser==3.15.0                # Email parser (wrong name; see mail-parser above)
+quotequail==0.3.0                   # Quote extraction
+
+# Spam Detection & Filtering
+spamassassin-client==0.0.4          # SpamAssassin client (nearest available version)
+# scikit-learn==1.4.0               # ML spam models (see ML section)
+
+# Email Threading
+# email-thread==0.1.0               # Thread emails (no such package on PyPI; placeholder)
+jwzthreading==0.91                  # JWZ algorithm (nearest available version)
+
+# Character Encoding
+chardet==5.2.0                      # Encoding detection
+charset-normalizer==3.3.2           # Normalization
+ftfy==6.1.3                         # Fix mojibake
+
+# Email Delivery Services
+mailgun==0.1.1                      # Mailgun API
+sendgrid==6.11.0                    # SendGrid API
+postmarker==1.0                     # Postmark API
+# ses-mailer==0.1                   # AWS SES client (broken upstream; use boto3-based SES wrapper)
+
+# ============================================================================
+# Calendar Integration (CalDAV/iCal)
+# ============================================================================
+caldav==1.3.9                       # CalDAV client
+icalendar==5.0.11                   # iCalendar parsing
+vobject==0.9.7                      # vCard and iCalendar
+recurring-ical-events==2.1.2        # Recurring event handling
+pytz==2023.3.post1                  # Timezone support
+python-dateutil==2.8.2              # Date utilities
+arrow==1.3.0                        # Better dates
+pendulum==3.0.0                     # DateTime library
+tzdata==2023.4                      # Timezone database
+timezonefinder==6.4.0               # Find timezone from coordinates
+
+# ============================================================================
+# External API Integrations
+# ============================================================================
+# Salesforce
+simple-salesforce==1.12.5           # Salesforce API
+salesforce-bulk==2.2.0              # Bulk API
+
+# Google Workspace
+google-auth==2.26.2                 # Google authentication
+google-auth-oauthlib==1.2.0         # OAuth for Google
+google-api-python-client==2.112.0   # Google API client
+google-cloud-storage==2.14.0        # Google Cloud Storage
+gspread==5.12.4                     # Google Sheets API
+
+# Microsoft 365
+msal==1.26.0                        # Microsoft Auth Library
+msgraph-core==1.0.0                 # Microsoft Graph
+O365==2.0.29                        # Office 365 API
+exchangelib==5.1.0                  # Exchange Web Services
+
+# Communication Platforms
+slack-sdk==3.26.2                   # Slack API
+python-telegram-bot==20.7           # Telegram Bot API
+discord.py==2.3.2                   # Discord API
+twilio==8.11.1                      # Twilio SMS/Voice
+
+# Video Conferencing
+# pyzoom==0.1.6                     # Zoom API client (not yet implemented; pins attrs<20 and conflicts with jsonschema/modern stack)
+# jitsi-meet-api==0.1.0             # Jitsi (REST API)
+
+# CRM & Marketing
+hubspot-api-client==8.2.1           # HubSpot API
+mailchimp-marketing==3.0.80         # Mailchimp API
+# pipedrive-python==0.0.1           # Pipedrive CRM (broken upstream; use direct REST integration)
+
+# Project Management
+asana==3.2.2                        # Asana API
+trello==0.9.7.3                     # Trello API (nearest available version)
+jira==3.6.0                         # Jira API
+monday==1.3.3                       # Monday.com API (nearest available version)
+
+# Cloud Storage
+dropbox==11.36.2                    # Dropbox API
+pydrive2==1.17.0                    # Google Drive
+onedrivesdk==1.1.8                  # OneDrive API
+
+# ============================================================================
+# Document Processing & Office Suite (Open Source)
+# ============================================================================
+# PDF Processing
+reportlab==4.4.1                    # PDF generation (>=4.4.1,<5.0.0 to satisfy redoc 0.2.3)
+weasyprint==60.2                    # HTML to PDF
+pdfkit==1.0.0                       # wkhtmltopdf wrapper
+borb==2.1.21                        # PDF creation/manipulation
+pypdfium2==4.26.0                   # PDF rendering
+camelot-py==0.11.0                  # PDF table extraction
+tabula-py==2.9.0                    # PDF table extraction
+
+# Word Processing (DOCX)
+python-docx==1.1.0                  # Create/modify Word docs
+docx2txt==0.8                       # Extract text from DOCX
+docx2pdf==0.1.8                     # Convert DOCX to PDF
+
+# Spreadsheets (Excel/Calc)
+openpyxl==3.1.2                     # Excel XLSX
+xlsxwriter==3.1.9                   # Create Excel files
+pandas==2.1.4                       # Data manipulation
+pyexcel==0.7.0                      # Unified spreadsheet API
+pyexcel-xlsx==0.6.0                 # XLSX support for pyexcel
+xlwings==0.30.13                    # Excel automation
+
+# Presentations (PowerPoint)
+python-pptx==0.6.23                 # Create/modify PowerPoint
+pptx2md==0.5.0                      # Convert PPTX to Markdown (nearest available version)
+
+# LibreOffice/OpenOffice Integration
+unoconv==0.9.0                      # Universal Office Converter
+pyoo==1.4                           # Python-OpenOffice bridge
+
+# Document Conversion
+pandoc==2.3                         # Universal document converter
+pypandoc==1.12                      # Pandoc wrapper
+mammoth==1.6.0                      # DOCX to HTML
+
+# OCR (Optical Character Recognition)
+pytesseract==0.3.10                 # Tesseract OCR wrapper
+pdf2image==1.17.0                   # Convert PDF to images
+pillow==10.2.0                      # Image processing
+opencv-python==4.9.0.80             # Computer vision
+
+# ============================================================================
+# Image Processing & Graphics
+# ============================================================================
+pillow==10.2.0                      # Image manipulation
+pillow-heif==0.15.0                 # HEIF/HEIC support
+pillow-avif-plugin==1.4.1           # AVIF support
+imageio==2.33.1                     # Image I/O
+scikit-image==0.22.0                # Image processing algorithms
+wand==0.6.13                        # ImageMagick wrapper
+pyvips==2.2.1                       # Fast image processing
+
+# Image Optimization
+# pillow-simd==9.4.0.post2          # [AI extras] SIMD-accelerated Pillow (optional; source build failing on this image)
+tinify==1.6.0                       # TinyPNG API
+# imagemin==0.1.0                   # Image minification (Node.js tool; no Python package)
+
+# QR Codes & Barcodes
+qrcode==7.4.2                       # QR code generation
+python-barcode==0.15.1              # Barcode generation
+pyzbar==0.1.9                       # Barcode reading
+
+# Charts & Graphs
+matplotlib==3.8.2                   # Plotting library
+seaborn==0.13.1                     # Statistical visualization
+plotly==5.18.0                      # Interactive plots
+bokeh==3.3.3                        # Interactive visualization
+altair==4.2.2                       # Declarative visualization (<5.0.0 to satisfy great-expectations 0.18.8)
+
+# ============================================================================
+# Newsletter & Email Campaign Creation
+# ============================================================================
+# Email Template Builders
+mjml==0.12.0                        # Responsive email framework (Python wrapper; Node MJML runtime required separately)
+# maizzle==2.0.0                    # Email framework (Node.js tool; no Python package)
+# foundation-emails==2.2.1          # Zurb Foundation for Emails
+# Newsletter Tools
+# newsletter-generator==0.1.0       # Newsletter generation (no such package on PyPI; placeholder)
+# email-newsletter==0.1.0           # Newsletter utilities (no such package on PyPI; placeholder)
+
+# ============================================================================
+# Invoice & Receipt Generation
+# ============================================================================
+# Invoice Libraries
+invoice-generator==0.0.3rc6         # Invoice generation (nearest available version)
+# python-invoice==0.1.0             # Invoice creation (no such package on PyPI; placeholder)
+invoicely==0.1.0                    # Invoice management
+
+# Accounting Integration
+# quickbooks-online==0.6.0          # QuickBooks API (no such package on PyPI; consider python-quickbooks)
+xero-python==3.0.0                  # Xero API (nearest available version)
+freshbooks-sdk==0.1.0               # FreshBooks API
+
+# ============================================================================
+# Background Tasks & Job Queues
+# ============================================================================
+celery==5.3.6                       # Distributed task queue
+# celery-beat==2.5.0                # Periodic task scheduler (no such package; use Celery beat or django-celery-beat)
+redis==5.0.1                        # Celery broker
+kombu==5.3.5                        # Messaging library
+arq==0.25.0                         # Redis-based queue (alternative)
+rq==1.16.0                          # Simple job queue
+dramatiq==1.15.0                    # Task processing
+huey==2.5.0                         # Lightweight task queue
+
+# Async Utilities
+asyncio==3.4.3                      # Async I/O
+aiofiles==23.2.1                    # Async file operations
+aiohttp==3.9.1                      # Async HTTP client
+httpx==0.25.2                       # Modern HTTP client (>=0.25.2,<0.26.0 to satisfy ollama/openai/anthropic)
+trio==0.24.0                        # Async I/O framework
+
+# ============================================================================
+# Observability & Monitoring
+# ============================================================================
+# Logging
+loguru==0.7.2                       # Advanced logging
+python-json-logger==2.0.7           # JSON logging
+structlog==24.1.0                   # Structured logging
+colorlog==6.8.0                     # Colored logs
+
+# Metrics & Monitoring
+prometheus-client==0.19.0           # Prometheus metrics
+statsd==4.0.1                       # StatsD client
+datadog==0.48.0                     # Datadog monitoring
+newrelic==9.4.0                     # New Relic APM
+
+# Distributed Tracing
+opentelemetry-api==1.22.0           # OpenTelemetry API
+opentelemetry-sdk==1.22.0           # OpenTelemetry SDK
+opentelemetry-instrumentation-fastapi==0.43b0
+opentelemetry-exporter-jaeger==1.21.0
+opentelemetry-exporter-otlp==1.22.0
+jaeger-client==4.8.0                # Jaeger tracing
+zipkin==0.1.0                       # Zipkin tracing (nearest available version)
+
+# Error Tracking
+sentry-sdk[fastapi]==1.39.2         # Sentry error tracking
+rollbar==0.16.3                     # Rollbar error tracking
+bugsnag==4.6.1                      # Bugsnag error reporting
+
+# Application Performance Monitoring
+elastic-apm==6.20.0                 # Elastic APM
+py-spy==0.3.14                      # Sampling profiler
+memory-profiler==0.61.0             # Memory profiling
+line-profiler==4.1.1 ; python_version < "3.12"  # Line-by-line profiling (requires older Cython; skipped on Python 3.12+)
+
+# ============================================================================
+# Rate Limiting & Throttling
+# ============================================================================
+slowapi==0.1.9                      # Rate limiting for FastAPI
+limits==3.7.0                       # Rate limiting utilities
+ratelimit==2.2.1                    # Simple rate limiting
+flask-limiter==3.5.0                # Rate limiting (if using Flask)
+pyrate-limiter==3.1.1               # Advanced rate limiting
+
+# ============================================================================
+# WebSockets & Real-time Communication
+# ============================================================================
+websockets==12.0                    # WebSocket support
+python-socketio==5.10.0             # Socket.IO
+sse-starlette==1.8.2                # Server-Sent Events
+aiohttp-sse==2.2.0                  # SSE for aiohttp
+channels==4.0.0                     # Django Channels (if needed)
+
+# ============================================================================
+# File Storage & Cloud Services
+# ============================================================================
+# AWS
+boto3==1.34.26                      # AWS SDK
+botocore==1.34.26                   # AWS core
+s3transfer==0.10.0                  # S3 transfer utilities
+aioboto3==12.3.0                    # Async boto3
+
+# Google Cloud
+google-cloud-storage==2.14.0        # GCS
+google-cloud-firestore==2.14.0      # Firestore
+
+# Azure
+azure-storage-blob==12.19.0         # Azure Blob Storage
+azure-identity==1.15.0              # Azure authentication
+
+# MinIO (Self-hosted S3)
+minio==7.2.3                        # MinIO client
+
+# File Type Detection
+python-magic==0.4.27                # File type detection
+filetype==1.2.0                     # File type identification
+
+# ============================================================================
+# Data Processing & Analytics
+# ============================================================================
+# Data Manipulation
+pandas==2.1.4                       # Data analysis
+numpy==1.26.3                       # Numerical computing
+# polars==0.20.3                    # [AI extras] Fast DataFrame library (unused)
+# dask==2024.1.0                    # [AI extras] Parallel computing / big data (unused)
+# vaex==4.17.0                      # [AI extras] Out-of-core DataFrames (Python 3.12 incompatible via vaex-core using deprecated 'imp')
+
+# Data Validation
+# great-expectations==0.18.8        # Data validation (optional; conflicts with ruamel.yaml<0.17.18)
+pandera==0.18.0                     # DataFrame validation
+cerberus==1.3.5                     # Data validation
+
+# Time Series
+# prophet==1.1.5                    # [AI extras] Time series forecasting (unused)
+# statsmodels==0.14.1               # [AI extras] Statistical models (unused)
+# pmdarima==2.0.4                   # [AI extras] Auto ARIMA (unused)
+
+# ============================================================================
+# Machine Learning & AI (Optional)
+# ============================================================================
+# Core ML Libraries
+# scikit-learn==1.4.0               # [AI extras] Classical ML (unused)
+# xgboost==2.0.3                    # [AI extras] Gradient boosting (unused)
+# lightgbm==4.2.0                   # [AI extras] LightGBM (unused)
+# catboost==1.2.2 ; python_version < "3.12"  # [AI extras] CatBoost (unused)
+
+# Deep Learning
+# torch==2.1.2                      # PyTorch (large, uncomment if needed)
+# tensorflow==2.15.0                # TensorFlow (large, uncomment if needed)
+
+# NLP
+spacy==3.7.2                        # NLP library
+nltk==3.8.1                         # Natural Language Toolkit
+textblob==0.17.1                    # Text processing
+
+# ============================================================================
+# Data Serialization & Formats
+# ============================================================================
+# JSON
+orjson==3.9.12                      # Fast JSON
+ujson==5.9.0                        # Ultra JSON
+simplejson==3.19.2                  # Simple JSON
+jsonpickle==3.0.2                   # Pickle to JSON
+
+# YAML
+pyyaml==6.0.1                       # YAML parser
+ruamel.yaml==0.18.5                 # YAML with comments
+
+# TOML
+toml==0.10.2                        # TOML parser
+tomli==2.0.1                        # TOML parser (Python 3.11+)
+
+# XML
+lxml==5.1.0                         # XML/HTML parser
+xmltodict==0.13.0                   # XML to dict
+defusedxml==0.7.1                   # Secure XML parsing
+
+# CSV
+csvkit==1.5.0                       # CSV utilities
+python-csv==0.0.13                  # CSV processing
+
+# Protobuf
+protobuf==4.25.2                    # Protocol Buffers
+grpcio==1.60.0                      # gRPC
+
+# ============================================================================
+# HTTP Clients & Requests
+# ============================================================================
+requests==2.31.0                    # HTTP library
+httpx==0.25.2                       # Modern HTTP client (aligned global pin; supports ollama/openai/anthropic range)
+aiohttp==3.9.1                      # Async HTTP
+urllib3==1.26.18                    # HTTP client (<2.0 to satisfy qdrant-client; >=1.26.14 for cohere/pinecone)
+requests-toolbelt==1.0.0            # Requests utilities
+requests-cache==1.1.1               # HTTP caching
+
+# ============================================================================
+# CLI & Terminal
+# ============================================================================
+click==8.1.7                        # CLI creation
+typer==0.9.0                        # Modern CLI (built on Click)
+rich==13.7.0                        # Rich terminal output
+colorama==0.4.6                     # Colored terminal
+tqdm==4.66.1                        # Progress bars
+alive-progress==3.1.5               # Animated progress bars
+questionary==2.0.1                  # Interactive prompts
+
+# ============================================================================
+# Testing & Quality Assurance
+# ============================================================================
+# Testing Frameworks
+pytest==7.4.4                       # Testing framework
+pytest-asyncio==0.23.3              # Async test support
+pytest-cov==4.1.0                   # Coverage reporting
+pytest-xdist==3.5.0                 # Parallel testing
+pytest-mock==3.12.0                 # Mocking
+pytest-benchmark==4.0.0             # Benchmarking
+
+# Test Utilities
+faker==22.2.0                       # Fake data generation
+factory-boy==3.3.0                  # Test fixtures
+hypothesis==6.96.1                  # Property-based testing
+responses==0.24.1                   # Mock HTTP responses
+freezegun==1.4.0                    # Mock datetime
+
+# Code Coverage
+coverage==7.4.0                     # Code coverage
+codecov==2.1.13                     # Codecov integration
+
+# ============================================================================
+# Code Quality & Linting
+# ============================================================================
+# Formatters
+black==24.1.1                       # Code formatter
+isort==5.13.2                       # Import sorting
+autopep8==2.0.4                     # PEP 8 formatter
+
+# Linters
+ruff==0.1.14                        # Fast Python linter
+pylint==3.0.3                       # Python linter
+flake8==7.0.0                       # Style guide enforcement
+pyflakes==3.2.0                     # Passive checker
+bandit==1.7.6                       # Security linter
+
+# Type Checking
+mypy==1.8.0                         # Static type checker
+pyright==1.1.348                    # Microsoft type checker
+pyre-check==0.9.19                  # Facebook type checker
+
+# Code Complexity
+radon==6.0.1                        # Code metrics
+mccabe==0.7.0                       # Complexity checker
+vulture==2.11                       # Dead code finder
+
+# ============================================================================
+# Documentation
+# ============================================================================
+# Documentation Generators
+mkdocs==1.5.3                       # Documentation generator
+mkdocs-material==9.5.6              # Material theme
+sphinx==7.2.6                       # Documentation builder
+sphinx-rtd-theme==2.0.0             # Read the Docs theme
+
+# API Documentation
+fastapi==0.109.0                    # Auto-generates OpenAPI docs
+redoc==0.2.3                        # ReDoc API docs (nearest available version)
+swagger-ui-bundle==0.0.9            # Swagger UI
+
+# ============================================================================
+# Utilities & Helpers
+# ============================================================================
+# Retry Logic
+tenacity==8.2.3                     # Retry library
+backoff==2.2.1                      # Backoff strategies
+
+# Validation
+validators==0.22.0                  # Data validators
+python-multipart==0.0.6             # Multipart form data
+
+# String Processing
+python-slugify==8.0.1               # Slugify strings
+unidecode==1.3.8                    # Unicode to ASCII
+ftfy==6.1.3                         # Fix text encoding
+
+# UUID & IDs
+shortuuid==1.0.11                   # Short UUIDs
+ulid-py==1.1.0                      # ULID generation
+nanoid==2.0.0                       # Nano ID
+
+# Hashing
+hashids==1.3.1                      # Hash IDs
+blake3==0.3.4                       # BLAKE3 hashing
+
+# Compression
+zstandard==0.22.0                   # Zstandard compression
+# python-snappy==0.7.1              # [extras] Snappy compression (cchardet/low-level accel; source build failing)
+lz4==4.3.3                          # LZ4 compression
+
+# ============================================================================
+# Deployment & Production
+# ============================================================================
+# Process Management
+supervisor==4.2.5                   # Process control
+python-daemon==3.0.1                # Daemonize processes
+watchdog==3.0.0                     # File system monitoring
+
+# Configuration Management
+dynaconf==3.2.4                     # Configuration management
+python-decouple==3.8                # Settings separation
+configparser==6.0.0                 # Config file parser
+
+# Health Checks
+healthcheck==1.3.3                  # Health check endpoints
+py-healthcheck==1.10.1              # Health monitoring
+
+# ============================================================================
+# Internationalization & Localization
+# ============================================================================
+Babel==2.14.0                       # I18n utilities
+python-i18n==0.3.9                  # Internationalization
+lingua==4.15.0                      # Language detection
+langdetect==1.0.9                   # Language detection
+pycountry==23.12.11                 # Country/language data
+
+# ============================================================================
+# Miscellaneous
+# ============================================================================
+# Date & Time
+python-dateutil==2.8.2              # Date utilities
+arrow==1.3.0                        # Better dates
+pendulum==3.0.0                     # DateTime library
+maya==0.6.1                         # Human-friendly dates
+
+# Networking
+dnspython==2.5.0                    # DNS toolkit
+netifaces==0.11.0                   # Network interfaces
+ipaddress==1.0.23                   # IP address manipulation
+geoip2==4.7.0                       # GeoIP lookups
+
+# System Information
+psutil==5.9.7                       # System utilities
+py-cpuinfo==9.0.0                   # CPU information
+distro==1.9.0                       # Linux distribution info
+
+# Scheduling
+apscheduler==3.10.4                 # Advanced scheduler
+schedule==1.2.0                     # Simple scheduler
+croniter==2.0.1                     # Cron expression parser
+
+# Workflow & State Machines
+transitions==0.9.0                  # State machines
+pytransitions==0.9.2                # Transitions wrapper (nearest stable available version)
+
+# Feature Flags
+flagsmith==3.5.0                    # Feature flags
+unleash-client==0.0.1               # Unleash feature toggles (nearest available version)
+
+# Webhooks
+webhooks==0.2.0                     # Webhook utilities (nearest available version)
+svix==1.17.0                        # Webhook service
+
+# ============================================================================
+# Development Tools (Optional - Comment out for production)
+# ============================================================================
+# ipython==8.20.0                   # Interactive Python
+# jupyter==1.0.0                    # Jupyter notebooks
+# notebook==7.0.6                   # Jupyter notebook
+# jupyterlab==4.0.10                # JupyterLab
+# ipdb==0.13.13                     # IPython debugger
+# pdbpp==0.10.3                     # Enhanced debugger
+
+# ============================================================================
+# END OF REQUIREMENTS
+# Total Packages: 250+
+# ============================================================================

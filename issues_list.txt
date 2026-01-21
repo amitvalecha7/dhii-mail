@@ -1,0 +1,30 @@
+83|V1 Phase 5.3: 'Liquid Glass' Component Host (Frontend) - Phase C
+82|V1 Phase 5.1: Email Sync Engine (Verified)
+81|V1 Phase 5.1: Calendar Sync Engine
+80|V1 Phase 5.4: Persistence Migration
+79|V1 Phase 5.3: Application Layer
+77|V1 Launch Blockers: Gap Analysis & Roadmap
+76|Refactor: Integrate 'Liquid Glass' React Frontend with Kernel
+75|User Flow & Production Frontend Summary
+74|Set up CI build and smoke tests
+73|Add production observability
+72|Integrate fuller A2UI catalog renderer
+71|Issue #40: Deal-Flow CRM
+70|Issue #39: Teams Bridge
+69|Issue #38: WhatsApp Bridge
+68|Issue #37: Dhii-Contacts (Core Contacts Plugin)
+67|Issue #36: Dhii-Calendar (Core Calendar Plugin)
+66|Issue #35: Hyper-Mail (Core Email Plugin)
+49|Plugin: Dev-Hub
+48|Plugin: Brand-Identity Manager
+47|Plugin: Pixel-Studio
+46|Plugin: Writer's Room
+45|Plugin: Sync-Chat (Internal)
+44|Plugin: Dhii-Connect (Internal Network)
+43|Plugin: Legal-Stack
+42|Plugin: Project-Nexus
+41|Plugin: Finance-Flow
+37|Plugin: Holo-Meet
+32|Align A2UI router response shape with orchestrator contract in a2ui_router_updated.py
+31|Unify AuthManager usage and token handling between main.py and auth.py
+26|Replace Custom Frontend Client with Official @a2ui/lit Renderer
